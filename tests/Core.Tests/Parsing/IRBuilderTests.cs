@@ -287,7 +287,7 @@ public class IRBuilderTests
         // Без RefResolver это должно отработать без ошибки, используя lazy ref
         var refResolver = Substitute.For<IRefResolver>();
         refResolver.ResolveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Throws<CyclicReferenceException>();
+            .Throws(new CyclicReferenceException("#/components/schemas/TreeNode", new[] { "TreeNode" }));
 
         var doc = BuildTestDocument();
         var sut = new IRBuilder(refResolver);
