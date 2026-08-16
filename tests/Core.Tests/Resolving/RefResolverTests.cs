@@ -341,7 +341,7 @@ public class RefResolverTests
     {
         var loader = Substitute.For<IDocumentLoader>();
         loader.LoadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(_ => throw new OperationCanceledException());
+            .Throws(new OperationCanceledException());
 
         var sut = new RefResolver(loader, new DocumentCache());
         using var cts = new CancellationTokenSource();

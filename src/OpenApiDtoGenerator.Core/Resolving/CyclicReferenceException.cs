@@ -17,10 +17,6 @@ public sealed class CyclicReferenceException : Exception
     /// </summary>
     public IReadOnlyList<string> CyclePath { get; }
 
-    public CyclicReferenceException()
-    {
-        
-    }
     public CyclicReferenceException(string cyclicKey, IReadOnlyList<string> cyclePath)
         : base(BuildMessage(cyclicKey, cyclePath))
     {
