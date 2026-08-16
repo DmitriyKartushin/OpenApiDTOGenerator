@@ -1,0 +1,35 @@
+# Пример конфигурации маскировки чувствительных полей.
+#
+# Стратегии:
+#   full       — всё значение → "***"
+#   partial    — видны первые visibleStart + последние visibleEnd символов
+#   firstChar  — только первый символ, остальное звёздочками
+#   yearOnly   — для дат: сохраняется только год (1990-**-**)
+#   hash       — SHA-256 хеш (для сравнения без раскрытия)
+#   none       — без маскировки
+
+masking:
+  rules:
+    # Паспортные данные
+    - fields: [series, number]
+      strategy: partial
+      visibleStart: 2
+      visibleEnd: 2
+
+    # ИНН/СНИЛС
+    - fields: [inn, snils]
+      strategy: partial
+      visibleStart: 3
+      visibleEnd: 2
+
+    # ФИО
+    - fields: [lastName, firstName, middleName]
+      strategy: firstChar
+
+    # Полностью скрываем
+    - fields: [issuedBy, departmentCode]
+      strategy: full
+
+    # Даты
+    - fields: [birthDate, issueDate, expiryDate]
+      strategy: yearOnly

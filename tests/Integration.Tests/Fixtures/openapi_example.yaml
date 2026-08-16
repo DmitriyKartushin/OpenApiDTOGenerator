@@ -1,0 +1,550 @@
+openapi: 3.0.3
+
+info:
+  title: Person Identity API
+  description: >
+    API для работы с персональными данными физических лиц.
+    Включает методы регистрации и обновления персональной информации,
+    документов удостоверяющих личность, СНИЛС и ИНН.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: https://staging.api.example.com/v1
+    description: Staging server
+  - url: http://localhost:8080/v1
+    description: Local development server
+
+tags:
+  - name: persons
+    description: Операции с персональными данными физических лиц
+
+paths:
+
+  /persons:
+    post:
+      tags:
+        - persons
+      operationId: createPerson
+      summary: Создание записи о физическом лице
+      description: >
+        Создаёт новую запись о физическом лице с персональными данными,
+        сведениями о документе удостоверяющем личность, СНИЛС и ИНН.
+        Все поля, помеченные как обязательные, должны быть переданы в запросе.
+      requestBody:
+        $ref: '#/components/requestBodies/CreatePersonRequest'
+      responses:
+        '201':
+          description: Физическое лицо успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonResponse'
+              examples:
+                success:
+                  $ref: '#/components/examples/PersonResponseExample'
+        '400':
+          description: Ошибка валидации входных данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '409':
+          description: Физическое лицо с таким ИНН или СНИЛС уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictErrorResponse'
+        '422':
+          description: Не удалось обработать запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  # ───────────────────────────── REQUEST BODIES ─────────────────────────────
+  requestBodies:
+
+    CreatePersonRequest:
+      description: Тело запроса для создания физического лица
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CreatePersonRequestBody'
+          examples:
+            passport_example:
+              $ref: '#/components/examples/CreatePersonPassportExample'
+
+  # ──────────────────────────────── SCHEMAS ─────────────────────────────────
+  schemas:
+
+    # ── Корневое тело запроса ────────────────────────────────────────────────
+    CreatePersonRequestBody:
+      type: object
+      description: Запрос на создание физического лица
+      required:
+        - personInfo
+        - inn
+        - snils
+      properties:
+        personInfo:
+          $ref: '#/components/schemas/PersonInfo'
+        inn:
+          $ref: '#/components/schemas/INN'
+        snils:
+          $ref: '#/components/schemas/SNILS'
+        metadata:
+          $ref: '#/components/schemas/RequestMetadata'
+
+    # ── Персональная информация ──────────────────────────────────────────────
+    PersonInfo:
+      type: object
+      description: Персональные данные физического лица
+      required:
+        - lastName
+        - firstName
+        - document
+      properties:
+        lastName:
+          type: string
+          description: Фамилия
+          minLength: 1
+          maxLength: 100
+          pattern: '^[А-ЯЁа-яёA-Za-z\-\s]+$'
+          example: Иванов
+        firstName:
+          type: string
+          description: Имя
+          minLength: 1
+          maxLength: 100
+          pattern: '^[А-ЯЁа-яёA-Za-z\-\s]+$'
+          example: Иван
+        middleName:
+          type: string
+          description: Отчество (при наличии)
+          maxLength: 100
+          pattern: '^[А-ЯЁа-яёA-Za-z\-\s]+$'
+          example: Иванович
+        birthDate:
+          type: string
+          format: date
+          description: Дата рождения (YYYY-MM-DD)
+          example: '1990-05-15'
+        gender:
+          $ref: '#/components/schemas/Gender'
+        document:
+          $ref: '#/components/schemas/IdentityDocument'
+
+    # ── Документ удостоверяющий личность ────────────────────────────────────
+    IdentityDocument:
+      type: object
+      description: Документ, удостоверяющий личность физического лица
+      required:
+        - documentType
+      properties:
+        documentType:
+          $ref: '#/components/schemas/DocumentType'
+        passport:
+          $ref: '#/components/schemas/PassportInfo'
+        foreignPassport:
+          $ref: '#/components/schemas/ForeignPassportInfo'
+      discriminator:
+        propertyName: documentType
+        mapping:
+          PASSPORT: '#/components/schemas/PassportInfo'
+          FOREIGN_PASSPORT: '#/components/schemas/ForeignPassportInfo'
+
+    # ── Паспорт РФ ───────────────────────────────────────────────────────────
+    PassportInfo:
+      type: object
+      description: Паспорт гражданина Российской Федерации
+      required:
+        - series
+        - number
+        - issuedBy
+        - issueDate
+        - departmentCode
+      properties:
+        series:
+          type: string
+          description: Серия паспорта (4 цифры)
+          pattern: '^\d{4}$'
+          minLength: 4
+          maxLength: 4
+          example: '4510'
+        number:
+          type: string
+          description: Номер паспорта (6 цифр)
+          pattern: '^\d{6}$'
+          minLength: 6
+          maxLength: 6
+          example: '123456'
+        issuedBy:
+          type: string
+          description: Кем выдан паспорт
+          minLength: 1
+          maxLength: 500
+          example: 'ОУФМС РОССИИ ПО Г. МОСКВЕ ПО РАЙОНУ АРБАТ'
+        issueDate:
+          type: string
+          format: date
+          description: Дата выдачи паспорта (YYYY-MM-DD)
+          example: '2015-03-20'
+        departmentCode:
+          type: string
+          description: Код подразделения, выдавшего паспорт (формат XXX-XXX)
+          pattern: '^\d{3}-\d{3}$'
+          minLength: 7
+          maxLength: 7
+          example: '770-001'
+        expiryDate:
+          type: string
+          format: date
+          description: >
+            Дата окончания срока действия.
+            Для паспорта РФ не заполняется (бессрочный),
+            актуально для иных документов.
+          example: null
+          nullable: true
+
+    # ── Заграничный паспорт ──────────────────────────────────────────────────
+    ForeignPassportInfo:
+      type: object
+      description: Заграничный паспорт гражданина Российской Федерации
+      required:
+        - series
+        - number
+        - issuedBy
+        - issueDate
+        - expiryDate
+        - departmentCode
+      properties:
+        series:
+          type: string
+          description: Серия заграничного паспорта (2 цифры)
+          pattern: '^\d{2}$'
+          minLength: 2
+          maxLength: 2
+          example: '71'
+        number:
+          type: string
+          description: Номер заграничного паспорта (7 цифр)
+          pattern: '^\d{7}$'
+          minLength: 7
+          maxLength: 7
+          example: '1234567'
+        issuedBy:
+          type: string
+          description: Кем выдан заграничный паспорт
+          minLength: 1
+          maxLength: 500
+          example: 'УФМС RUSSIA ПО Г. МОСКВЕ'
+        issueDate:
+          type: string
+          format: date
+          description: Дата выдачи (YYYY-MM-DD)
+          example: '2020-06-01'
+        expiryDate:
+          type: string
+          format: date
+          description: Дата окончания срока действия (YYYY-MM-DD)
+          example: '2030-06-01'
+        departmentCode:
+          type: string
+          description: Код подразделения (формат XXX-XXX)
+          pattern: '^\d{3}-\d{3}$'
+          minLength: 7
+          maxLength: 7
+          example: '770-101'
+
+    # ── ИНН ─────────────────────────────────────────────────────────────────
+    INN:
+      type: object
+      description: Индивидуальный номер налогоплательщика (ИНН)
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          description: >
+            12-значный ИНН физического лица.
+            Контрольные цифры проверяются на стороне сервера.
+          pattern: '^\d{12}$'
+          minLength: 12
+          maxLength: 12
+          example: '771234567890'
+        verifiedAt:
+          type: string
+          format: date-time
+          description: Дата и время последней верификации ИНН в ФНС
+          example: '2024-01-15T10:30:00Z'
+          readOnly: true
+
+    # ── СНИЛС ────────────────────────────────────────────────────────────────
+    SNILS:
+      type: object
+      description: Страховой номер индивидуального лицевого счёта (СНИЛС)
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          description: >
+            СНИЛС в формате XXX-XXX-XXX XX (с дефисами и пробелом перед контрольными цифрами).
+            Также принимается без форматирования — 11 цифр подряд.
+          pattern: '^(\d{3}-\d{3}-\d{3}\s\d{2}|\d{11})$'
+          example: '112-233-445 95'
+        verifiedAt:
+          type: string
+          format: date-time
+          description: Дата и время последней верификации в СФР
+          example: '2024-01-15T10:30:00Z'
+          readOnly: true
+
+    # ── Тип документа ────────────────────────────────────────────────────────
+    DocumentType:
+      type: string
+      description: Тип документа, удостоверяющего личность
+      enum:
+        - PASSPORT
+        - FOREIGN_PASSPORT
+        - BIRTH_CERTIFICATE
+        - MILITARY_ID
+        - RESIDENCE_PERMIT
+      x-enum-descriptions:
+        PASSPORT: Паспорт гражданина РФ
+        FOREIGN_PASSPORT: Заграничный паспорт
+        BIRTH_CERTIFICATE: Свидетельство о рождении
+        MILITARY_ID: Военный билет
+        RESIDENCE_PERMIT: Вид на жительство
+      example: PASSPORT
+
+    # ── Пол ──────────────────────────────────────────────────────────────────
+    Gender:
+      type: string
+      description: Пол физического лица
+      enum:
+        - MALE
+        - FEMALE
+        - NOT_SPECIFIED
+      x-enum-descriptions:
+        MALE: Мужской
+        FEMALE: Женский
+        NOT_SPECIFIED: Не указан
+      example: MALE
+
+    # ── Метаданные запроса ───────────────────────────────────────────────────
+    RequestMetadata:
+      type: object
+      description: Служебные метаданные запроса
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор запроса (для идемпотентности)
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        source:
+          type: string
+          description: Система-источник запроса
+          maxLength: 100
+          example: 'CRM_SYSTEM'
+        operatorId:
+          type: string
+          description: Идентификатор оператора, выполняющего запрос
+          maxLength: 50
+          example: 'USR-00042'
+        timestamp:
+          type: string
+          format: date-time
+          description: Временная метка запроса
+          example: '2024-07-01T12:00:00Z'
+
+    # ── Ответ при успешном создании ──────────────────────────────────────────
+    PersonResponse:
+      type: object
+      description: Ответ сервера при успешном создании физического лица
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор созданной записи
+          example: 'a3f1c2d4-1234-5678-abcd-ef0123456789'
+        status:
+          type: string
+          enum:
+            - CREATED
+            - PENDING_VERIFICATION
+          example: CREATED
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата и время создания записи
+          example: '2024-07-01T12:00:05Z'
+        personInfo:
+          $ref: '#/components/schemas/PersonInfo'
+        inn:
+          $ref: '#/components/schemas/INN'
+        snils:
+          $ref: '#/components/schemas/SNILS'
+
+    # ── Ошибки ───────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      description: Базовая структура ошибки
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+          example: 'INTERNAL_SERVER_ERROR'
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+          example: 'Произошла внутренняя ошибка сервера'
+        traceId:
+          type: string
+          description: Идентификатор трассировки для поиска в логах
+          example: 'abc123xyz'
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          description: Ошибка валидации с перечнем невалидных полей
+          properties:
+            violations:
+              type: array
+              description: Список нарушений валидации
+              items:
+                $ref: '#/components/schemas/FieldViolation'
+
+    FieldViolation:
+      type: object
+      description: Описание нарушения валидации одного поля
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Путь к полю (JSON Pointer, RFC 6901)
+          example: '/personInfo/document/passport/series'
+        rejectedValue:
+          type: string
+          description: Отклонённое значение (строковое представление)
+          example: 'ABC1'
+        message:
+          type: string
+          description: Описание нарушения
+          example: 'Серия паспорта должна состоять из 4 цифр'
+
+    ConflictErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          description: Ошибка конфликта — запись уже существует
+          properties:
+            conflictField:
+              type: string
+              description: Поле, вызвавшее конфликт
+              example: 'inn'
+            existingPersonId:
+              type: string
+              format: uuid
+              description: ID уже существующей записи
+              example: 'b9c2a1f0-abcd-efab-cdef-012345678901'
+
+  # ───────────────────────────────── EXAMPLES ───────────────────────────────
+  examples:
+
+    CreatePersonPassportExample:
+      summary: Создание физлица с паспортом РФ
+      description: Полный пример запроса для гражданина РФ с паспортом
+      value:
+        personInfo:
+          lastName: Иванов
+          firstName: Иван
+          middleName: Иванович
+          birthDate: '1990-05-15'
+          gender: MALE
+          document:
+            documentType: PASSPORT
+            passport:
+              series: '4510'
+              number: '123456'
+              issuedBy: 'ОУФМС РОССИИ ПО Г. МОСКВЕ ПО РАЙОНУ АРБАТ'
+              issueDate: '2015-03-20'
+              departmentCode: '770-001'
+        inn:
+          value: '771234567890'
+        snils:
+          value: '112-233-445 95'
+        metadata:
+          requestId: '550e8400-e29b-41d4-a716-446655440000'
+          source: CRM_SYSTEM
+          operatorId: USR-00042
+          timestamp: '2024-07-01T12:00:00Z'
+
+    PersonResponseExample:
+      summary: Успешный ответ после создания физлица
+      value:
+        personId: 'a3f1c2d4-1234-5678-abcd-ef0123456789'
+        status: CREATED
+        createdAt: '2024-07-01T12:00:05Z'
+        personInfo:
+          lastName: Иванов
+          firstName: Иван
+          middleName: Иванович
+          birthDate: '1990-05-15'
+          gender: MALE
+          document:
+            documentType: PASSPORT
+            passport:
+              series: '4510'
+              number: '123456'
+              issuedBy: 'ОУФМС РОССИИ ПО Г. МОСКВЕ ПО РАЙОНУ АРБАТ'
+              issueDate: '2015-03-20'
+              departmentCode: '770-001'
+        inn:
+          value: '771234567890'
+          verifiedAt: '2024-01-15T10:30:00Z'
+        snils:
+          value: '112-233-445 95'
+          verifiedAt: '2024-01-15T10:30:00Z'
+
+  # ─────────────────────────────── SECURITY ─────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT-токен авторизации
+
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API-ключ системы
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
