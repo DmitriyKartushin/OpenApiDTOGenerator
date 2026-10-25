@@ -1,0 +1,11 @@
+{
+  "product": "CONSUMER",
+  "requestedAmount": {
+    "amount": 100000,
+    "currency": "RUB"
+  },
+  "termMonths": 12,
+  "collateral": {
+    "collateralType": "NONE"
+  }
+}

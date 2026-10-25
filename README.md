@@ -99,6 +99,29 @@ Generated/
 
 Для других методов: `--json-schema-methods post put patch`.
 
+Ограничения, которые важно знать при валидации:
+- **`format` по умолчанию не проверяется.** В draft 2020-12 `format` (`date`, `email`, `uuid`…) — аннотация.
+  Чтобы `"birthDate": "не-дата"` отклонялся, включите проверку форматов в валидаторе
+  (для JsonSchema.Net — `RequireFormatValidation = true`, см. пример ниже).
+- **`discriminator` не переносится** — `oneOf` выбирает вариант по содержимому. Чтобы варианты
+  взаимно исключали друг друга, задавайте в каждом поле-дискриминатор с `enum: [VALUE]`
+  (как в `samples/complex/loan_application.yaml`). При ошибке валидатор сообщит о несовпадении со всеми вариантами.
+
+#### Сложный пример
+
+`samples/complex/` — заявка на кредит: внешние `$ref` (`common/money.yaml`, `common/address.yaml`),
+`allOf`, `oneOf` + `discriminator`, цикл `Comment → replies → Comment`, `nullable`, `readOnly`,
+`exclusiveMinimum`, `additionalProperties`, `uniqueItems`. В `payloads/` лежат тела запросов:
+`valid_*.json` должны проходить валидацию, `invalid_*.json` — отклоняться (нарушение указано в имени файла).
+Их автоматически прогоняет `tests/Integration.Tests/ComplexRequestJsonSchemaTests.cs` —
+чтобы проверить новый случай, достаточно добавить файл.
+
+```bash
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
+  -i samples/complex/loan_application.yaml -o ./Generated -n Loan.Dto \
+  --json-schema-only --json-schema-methods post put
+```
+
 ### Все опции
 
 ```
@@ -142,13 +165,58 @@ if (!result.IsValid)
 }
 ```
 
+### Валидация входящего запроса по JSON Schema
+
+Пример для ASP.NET Core с [JsonSchema.Net](https://www.nuget.org/packages/JsonSchema.Net) —
+схема загружается один раз и проверяет сырое тело запроса до десериализации в DTO:
+
+```csharp
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Json.Schema;
+
+var schema = JsonSchema.FromFile("Generated/JsonSchema/createPerson.schema.json");
+var options = new EvaluationOptions
+{
+    OutputFormat = OutputFormat.List,
+    RequireFormatValidation = true   // проверять date / date-time / email / uuid
+};
+
+app.MapPost("/persons", async (HttpRequest request) =>
+{
+    var body = await JsonNode.ParseAsync(request.Body);
+    var result = schema.Evaluate(body, options);
+
+    if (!result.IsValid)
+    {
+        var errors = result.Details
+            .Where(d => d.HasErrors)
+            .SelectMany(d => d.Errors!.Select(e => new { field = d.InstanceLocation.ToString(), error = e.Value }));
+        return Results.BadRequest(errors);   // [{ "field": "/personInfo/lastName", "error": "..." }]
+    }
+
+    var dto = body.Deserialize<CreatePersonRequestBody>();
+    // ...
+    return Results.Created();
+});
+```
+
+Для нескольких операций используйте `index.json`: загрузите все схемы и выбирайте нужную по `method` + `path`.
+
 ## Тесты
 
 ```bash
 dotnet test
 
-# ~350 tests, all green
+# ~380 tests, all green
 ```
+
+| Проект | Что проверяет |
+|---|---|
+| `Core.Tests` | парсинг YAML/JSON, `$ref`-резолвинг, JSON Pointer, циклы, IRBuilder |
+| `Generators.Tests` | DTO, валидаторы, masking, JSON Schema (включая реальную валидацию через JsonSchema.Net) |
+| `Cli.Tests` | пайплайн `generate` с записью файлов на диск, флаги `--*-only` |
+| `Integration.Tests` | `openapi_example.yaml` → IR; `samples/complex` → JSON Schema → валидация тел запросов |
 
 ## Архитектура
 
@@ -169,6 +237,7 @@ dotnet test
 │  • DtoGenerator                                │
 │  • ValidatorGenerator                          │
 │  • MaskingGenerator                            │
+│  • JsonSchemaGenerator (по сырому дереву)      │
 └────────────┬─────────────────────────────────┘
              ▼
 ┌──────────────────────────────────────────────┐
@@ -177,7 +246,7 @@ dotnet test
 │  • GenerateCommandExecutor                     │
 └────────────┬─────────────────────────────────┘
              ▼
-        .cs файлы на диске
+   .cs и .schema.json файлы на диске
 ```
 
 ## Лицензия

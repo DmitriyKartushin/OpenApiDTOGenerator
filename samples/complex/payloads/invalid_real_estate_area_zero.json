@@ -1,0 +1,28 @@
+{
+  "product": "CONSUMER",
+  "requestedAmount": {
+    "amount": 100000,
+    "currency": "RUB"
+  },
+  "termMonths": 12,
+  "applicant": {
+    "lastName": "Петров",
+    "firstName": "Пётр",
+    "birthDate": "1985-01-01",
+    "phone": "+79000000000",
+    "employment": {
+      "kind": "UNEMPLOYED"
+    }
+  },
+  "collateral": {
+    "collateralType": "REAL_ESTATE",
+    "cadastralNumber": "77:01:0001001:1",
+    "area": 0,
+    "address": {
+      "region": "Москва",
+      "city": "Москва",
+      "street": "Арбат",
+      "house": "1"
+    }
+  }
+}

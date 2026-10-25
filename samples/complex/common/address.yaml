@@ -1,0 +1,30 @@
+# Внешний файл: почтовый адрес.
+Address:
+  type: object
+  description: Почтовый адрес
+  required: [region, city, street, house]
+  properties:
+    postalCode:
+      type: string
+      pattern: '^\d{6}$'
+      example: '101000'
+    region:
+      type: string
+      minLength: 2
+      maxLength: 100
+    city:
+      type: string
+      minLength: 2
+      maxLength: 100
+    street:
+      type: string
+      minLength: 1
+      maxLength: 200
+    house:
+      type: string
+      minLength: 1
+      maxLength: 20
+    flat:
+      type: string
+      nullable: true
+      maxLength: 10

@@ -1,0 +1,14 @@
+{
+  "product": "AUTO",
+  "requestedAmount": { "amount": 1500000.50, "currency": "USD" },
+  "termMonths": 60,
+  "purpose": null,
+  "applicant": {
+    "lastName": "Сидоров",
+    "firstName": "Сидор",
+    "birthDate": "1980-12-31",
+    "phone": "+79991112233",
+    "employment": { "kind": "EMPLOYED" }
+  },
+  "collateral": { "collateralType": "VEHICLE", "vin": "XTA21099043512345", "year": 2022 }
+}

@@ -1,0 +1,41 @@
+{
+  "product": "MORTGAGE",
+  "requestedAmount": { "amount": 5000000, "currency": "RUB" },
+  "termMonths": 240,
+  "purpose": "REAL_ESTATE",
+  "applicant": {
+    "lastName": "Иванов",
+    "firstName": "Иван",
+    "birthDate": "1990-05-15",
+    "phone": "+79161234567",
+    "email": "ivanov@example.com",
+    "monthlyIncome": { "amount": 250000, "currency": "RUB" },
+    "registrationAddress": { "postalCode": "101000", "region": "Москва", "city": "Москва", "street": "Арбат", "house": "1", "flat": "15" },
+    "actualAddress": null,
+    "employment": { "kind": "EMPLOYED", "employerName": "ООО Ромашка", "experienceMonths": 60 }
+  },
+  "coApplicants": [
+    {
+      "lastName": "Иванова",
+      "firstName": "Мария",
+      "birthDate": "1992-08-01",
+      "phone": "+79167654321",
+      "employment": { "kind": "SELF_EMPLOYED" }
+    }
+  ],
+  "collateral": {
+    "collateralType": "REAL_ESTATE",
+    "cadastralNumber": "77:01:0001001:1234",
+    "area": 54.5,
+    "address": { "region": "Москва", "city": "Москва", "street": "Тверская", "house": "10", "flat": null }
+  },
+  "consents": [
+    { "type": "PERSONAL_DATA", "accepted": true, "acceptedAt": "2026-10-25T10:00:00Z" },
+    { "type": "CREDIT_BUREAU", "accepted": true }
+  ],
+  "attributes": { "channel": "mobile", "promo": "AUTUMN2026" },
+  "comment": {
+    "text": "Прошу рассмотреть быстрее",
+    "replies": [ { "text": "Принято", "replies": [ { "text": "Спасибо" } ] } ]
+  }
+}

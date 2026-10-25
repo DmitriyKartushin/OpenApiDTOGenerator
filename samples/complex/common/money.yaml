@@ -1,0 +1,20 @@
+# Внешний файл: денежная сумма. Внутренняя ссылка '#/Currency' резолвится относительно ЭТОГО файла.
+Money:
+  type: object
+  description: Денежная сумма
+  required: [amount, currency]
+  properties:
+    amount:
+      type: number
+      description: Сумма (строго больше нуля)
+      minimum: 0
+      exclusiveMinimum: true
+      maximum: 1000000000
+      example: 150000
+    currency:
+      $ref: '#/Currency'
+
+Currency:
+  type: string
+  description: Код валюты ISO 4217
+  enum: [RUB, USD, EUR]

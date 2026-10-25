@@ -1,0 +1,27 @@
+{
+  "product": "CONSUMER",
+  "requestedAmount": {
+    "amount": 100000,
+    "currency": "RUB"
+  },
+  "termMonths": 12,
+  "applicant": {
+    "lastName": "Петров",
+    "firstName": "Пётр",
+    "birthDate": "1985-01-01",
+    "phone": "+79000000000",
+    "employment": {
+      "kind": "UNEMPLOYED"
+    }
+  },
+  "collateral": {
+    "collateralType": "NONE"
+  },
+  "consents": [
+    {
+      "type": "MARKETING",
+      "accepted": true,
+      "foo": 1
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+openapi: 3.0.3
+
+info:
+  title: Loan Application API
+  description: >
+    Тестовая спецификация со сложным телом запроса для проверки генерации JSON Schema:
+    внешние $ref, allOf, oneOf + discriminator, циклические ссылки, nullable,
+    readOnly, exclusiveMinimum, additionalProperties, вложенные inline-массивы.
+  version: 1.0.0
+
+paths:
+
+  /loan-applications:
+    post:
+      operationId: createLoanApplication
+      summary: Подача заявки на кредит
+      requestBody:
+        $ref: '#/components/requestBodies/LoanApplicationRequest'
+      responses:
+        '201':
+          description: Заявка создана
+
+  /loan-applications/{id}:
+    put:
+      operationId: replaceLoanApplication
+      summary: Полная замена заявки
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanApplication'
+      responses:
+        '200':
+          description: Заявка обновлена
+
+  /loan-applications/{id}/comments:
+    post:
+      summary: Комментарий к заявке (без operationId)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Comment'
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: Комментарий добавлен
+
+components:
+
+  requestBodies:
+    LoanApplicationRequest:
+      description: Заявка на кредит
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LoanApplication'
+
+  schemas:
+
+    # ── Корень запроса ───────────────────────────────────────────────────────
+    LoanApplication:
+      type: object
+      description: Заявка на кредит
+      additionalProperties: false
+      required: [applicationId, product, requestedAmount, termMonths, applicant, collateral]
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Присваивается сервером — клиент не передаёт
+        product:
+          $ref: '#/components/schemas/LoanProduct'
+        requestedAmount:
+          $ref: './common/money.yaml#/Money'
+        termMonths:
+          type: integer
+          minimum: 3
+          maximum: 360
+        purpose:
+          type: string
+          nullable: true
+          enum: [CAR, REAL_ESTATE, EDUCATION, OTHER]
+        applicant:
+          $ref: '#/components/schemas/Applicant'
+        coApplicants:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/Applicant'
+        collateral:
+          $ref: '#/components/schemas/Collateral'
+        consents:
+          type: array
+          description: Согласия заявителя (inline-объекты)
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, accepted]
+            properties:
+              type:
+                type: string
+                enum: [PERSONAL_DATA, CREDIT_BUREAU, MARKETING]
+              accepted:
+                type: boolean
+              acceptedAt:
+                type: string
+                format: date-time
+        attributes:
+          type: object
+          description: Произвольные строковые атрибуты (map)
+          maxProperties: 10
+          additionalProperties:
+            type: string
+            maxLength: 255
+        comment:
+          $ref: '#/components/schemas/Comment'
+
+    LoanProduct:
+      type: string
+      enum: [CONSUMER, MORTGAGE, AUTO]
+      x-enum-descriptions:
+        CONSUMER: Потребительский
+        MORTGAGE: Ипотека
+        AUTO: Автокредит
+
+    # ── Заявитель: allOf-наследование от Person ─────────────────────────────
+    Person:
+      type: object
+      required: [lastName, firstName, birthDate]
+      properties:
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[А-ЯЁа-яё\-]+$'
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[А-ЯЁа-яё\-]+$'
+        birthDate:
+          type: string
+          format: date
+
+    Applicant:
+      allOf:
+        - $ref: '#/components/schemas/Person'
+        - type: object
+          required: [phone, employment]
+          properties:
+            phone:
+              type: string
+              pattern: '^\+7\d{10}$'
+            email:
+              type: string
+              format: email
+            monthlyIncome:
+              $ref: './common/money.yaml#/Money'
+            registrationAddress:
+              $ref: './common/address.yaml#/Address'
+            actualAddress:
+              description: Фактический адрес (null — совпадает с регистрацией)
+              nullable: true
+              allOf:
+                - $ref: './common/address.yaml#/Address'
+            employment:
+              $ref: '#/components/schemas/Employment'
+
+    Employment:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [EMPLOYED, SELF_EMPLOYED, UNEMPLOYED]
+        employerName:
+          type: string
+          maxLength: 200
+        experienceMonths:
+          type: integer
+          minimum: 0
+
+    # ── Залог: oneOf + discriminator ────────────────────────────────────────
+    Collateral:
+      oneOf:
+        - $ref: '#/components/schemas/RealEstateCollateral'
+        - $ref: '#/components/schemas/VehicleCollateral'
+        - $ref: '#/components/schemas/NoCollateral'
+      discriminator:
+        propertyName: collateralType
+        mapping:
+          REAL_ESTATE: '#/components/schemas/RealEstateCollateral'
+          VEHICLE: '#/components/schemas/VehicleCollateral'
+          NONE: '#/components/schemas/NoCollateral'
+
+    RealEstateCollateral:
+      type: object
+      required: [collateralType, cadastralNumber, area, address]
+      properties:
+        collateralType:
+          type: string
+          enum: [REAL_ESTATE]
+        cadastralNumber:
+          type: string
+          pattern: '^\d{2}:\d{2}:\d{6,7}:\d+$'
+        area:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        address:
+          $ref: './common/address.yaml#/Address'
+
+    VehicleCollateral:
+      type: object
+      required: [collateralType, vin, year]
+      properties:
+        collateralType:
+          type: string
+          enum: [VEHICLE]
+        vin:
+          type: string
+          pattern: '^[A-HJ-NPR-Z0-9]{17}$'
+        year:
+          type: integer
+          minimum: 1990
+          maximum: 2030
+
+    NoCollateral:
+      type: object
+      required: [collateralType]
+      properties:
+        collateralType:
+          type: string
+          enum: [NONE]
+
+    # ── Комментарий: циклическая ссылка (дерево ответов) ────────────────────
+    Comment:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        replies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
