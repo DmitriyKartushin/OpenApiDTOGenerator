@@ -41,6 +41,15 @@ public sealed record GenerateOptions
     /// <summary>Генерировать только валидаторы.</summary>
     public bool ValidatorsOnly { get; init; }
 
+    /// <summary>Генерировать JSON Schema для тел входящих POST-запросов.</summary>
+    public bool GenerateJsonSchema { get; init; }
+
+    /// <summary>HTTP-методы, для тел запросов которых генерируется JSON Schema (null — только POST).</summary>
+    public IReadOnlyList<string>? JsonSchemaHttpMethods { get; init; }
+
+    /// <summary>Генерировать только JSON Schema.</summary>
+    public bool JsonSchemaOnly { get; init; }
+
     /// <summary>Генерировать только masking.</summary>
     public bool MaskingOnly { get; init; }
 
@@ -49,9 +58,10 @@ public sealed record GenerateOptions
 
     // ── Вычисляемые флаги ──────────────────────────────────────────────
 
-    public bool ShouldGenerateDto        => !ValidatorsOnly && !MaskingOnly;
-    public bool ShouldGenerateValidators => !DtoOnly && !MaskingOnly;
-    public bool ShouldGenerateMasking    => !DtoOnly && !ValidatorsOnly && MaskingConfig is not null;
+    public bool ShouldGenerateDto        => !ValidatorsOnly && !MaskingOnly && !JsonSchemaOnly;
+    public bool ShouldGenerateValidators => !DtoOnly && !MaskingOnly && !JsonSchemaOnly;
+    public bool ShouldGenerateMasking    => !DtoOnly && !ValidatorsOnly && !JsonSchemaOnly && MaskingConfig is not null;
+    public bool ShouldGenerateJsonSchema => JsonSchemaOnly || (GenerateJsonSchema && !DtoOnly && !ValidatorsOnly && !MaskingOnly);
 
     /// <summary>Нужно ли делать DTO partial (нужно если masking включён).</summary>
     public bool NeedsPartialDto => ShouldGenerateMasking;

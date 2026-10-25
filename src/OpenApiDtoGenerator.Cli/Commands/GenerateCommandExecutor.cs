@@ -2,6 +2,7 @@ using OpenApiDtoGenerator.Cli.Config;
 using OpenApiDtoGenerator.Core.Parsing;
 using OpenApiDtoGenerator.Core.Resolving;
 using OpenApiDtoGenerator.Generators.Dto;
+using OpenApiDtoGenerator.Generators.JsonSchema;
 using OpenApiDtoGenerator.Generators.Masking;
 using OpenApiDtoGenerator.Generators.Validators;
 
@@ -98,6 +99,20 @@ public sealed class GenerateCommandExecutor
                 var maskingFiles = maskingGenerator.GenerateAll(schemas, maskingOptions);
                 WriteFiles(maskingFiles, Path.Combine(options.OutputPath, "Masking"));
                 _log($"   ✓ {maskingFiles.Count} masking files written");
+            }
+
+            // ═══ 6. Generate JSON Schema ═════════════════════════════════
+            if (options.ShouldGenerateJsonSchema)
+            {
+                _log("📐  Generating JSON Schema for request bodies...");
+                var jsonSchemaGenerator = new JsonSchemaGenerator(loader, yamlParser);
+                var jsonSchemaOptions = new JsonSchemaGeneratorOptions(
+                    HttpMethods: options.JsonSchemaHttpMethods);
+
+                var jsonSchemaFiles = await jsonSchemaGenerator.GenerateAllAsync(
+                    documentTree, options.InputPath, jsonSchemaOptions, ct);
+                WriteFiles(jsonSchemaFiles, Path.Combine(options.OutputPath, "JsonSchema"));
+                _log($"   ✓ {jsonSchemaFiles.Count} JSON Schema files written");
             }
 
             _log("");

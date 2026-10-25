@@ -180,6 +180,51 @@ public class GenerateCommandExecutorTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // JSON Schema
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task ExecuteAsync_ByDefault_DoesNotCreateJsonSchemaDirectory()
+    {
+        await new GenerateCommandExecutor(_ => { }, _ => { }).ExecuteAsync(BasicOptions());
+
+        Directory.Exists(Path.Combine(_tempDir, "JsonSchema")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithJsonSchema_WritesSchemaAndIndexToDisk()
+    {
+        var opts = BasicOptions() with { GenerateJsonSchema = true };
+
+        var exitCode = await new GenerateCommandExecutor(_ => { }, _ => { }).ExecuteAsync(opts);
+
+        exitCode.ShouldBe(0);
+        Directory.Exists(Path.Combine(_tempDir, "Dto")).ShouldBeTrue();
+
+        var schemaPath = Path.Combine(_tempDir, "JsonSchema", "createPerson.schema.json");
+        File.Exists(schemaPath).ShouldBeTrue();
+        File.Exists(Path.Combine(_tempDir, "JsonSchema", "index.json")).ShouldBeTrue();
+
+        var schema = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(schemaPath))!;
+        schema["$schema"]!.GetValue<string>().ShouldBe("https://json-schema.org/draft/2020-12/schema");
+        schema["$ref"]!.GetValue<string>().ShouldBe("#/$defs/CreatePersonRequestBody");
+        schema["$defs"]!["PassportInfo"]!["properties"]!["series"]!["pattern"]!
+            .GetValue<string>().ShouldBe("^\\d{4}$");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_JsonSchemaOnly_CreatesOnlyJsonSchema()
+    {
+        var opts = BasicOptions() with { JsonSchemaOnly = true };
+
+        await new GenerateCommandExecutor(_ => { }, _ => { }).ExecuteAsync(opts);
+
+        Directory.Exists(Path.Combine(_tempDir, "JsonSchema")).ShouldBeTrue();
+        Directory.Exists(Path.Combine(_tempDir, "Dto")).ShouldBeFalse();
+        Directory.Exists(Path.Combine(_tempDir, "Validators")).ShouldBeFalse();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // Error cases
     // ═══════════════════════════════════════════════════════════════
 

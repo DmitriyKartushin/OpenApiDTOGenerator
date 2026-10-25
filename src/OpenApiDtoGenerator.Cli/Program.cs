@@ -10,7 +10,8 @@ using OpenApiDtoGenerator.Generators.Masking;
 //   openapi-dto-gen generate --input openapi.yaml --output ./Generated
 //                            --namespace MyApp.Dto
 //                            [--masking-config masking.yaml]
-//                            [--dto-only | --validators-only | --masking-only]
+//                            [--json-schema] [--json-schema-methods post put]
+//                            [--dto-only | --validators-only | --masking-only | --json-schema-only]
 //                            [--verbose]
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -79,6 +80,20 @@ static Command BuildGenerateCommand()
         aliases: new[] { "--masking-only" },
         description: "Generate only masking infrastructure.");
 
+    var jsonSchemaOption = new Option<bool>(
+        aliases: new[] { "--json-schema" },
+        description: "Also generate JSON Schema (draft 2020-12) for request bodies — for validating incoming requests.");
+
+    var jsonSchemaOnlyOption = new Option<bool>(
+        aliases: new[] { "--json-schema-only" },
+        description: "Generate only JSON Schema for request bodies.");
+
+    var jsonSchemaMethodsOption = new Option<string[]>(
+        aliases: new[] { "--json-schema-methods" },
+        description: "HTTP methods whose request bodies get a JSON Schema (default: post).",
+        getDefaultValue: () => new[] { "post" })
+    { AllowMultipleArgumentsPerToken = true };
+
     var verboseOption = new Option<bool>(
         aliases: new[] { "--verbose", "-v" },
         description: "Enable verbose output.");
@@ -90,6 +105,7 @@ static Command BuildGenerateCommand()
         prefixOption, suffixOption,
         maskingConfigOption,
         dtoOnlyOption, validatorsOnlyOption, maskingOnlyOption,
+        jsonSchemaOption, jsonSchemaOnlyOption, jsonSchemaMethodsOption,
         verboseOption
     };
 
@@ -107,12 +123,15 @@ static Command BuildGenerateCommand()
         var validatorsOnly = context.ParseResult.GetValueForOption(validatorsOnlyOption);
         var maskingOnly  = context.ParseResult.GetValueForOption(maskingOnlyOption);
         var verbose      = context.ParseResult.GetValueForOption(verboseOption);
+        var jsonSchema   = context.ParseResult.GetValueForOption(jsonSchemaOption);
+        var jsonSchemaOnly = context.ParseResult.GetValueForOption(jsonSchemaOnlyOption);
+        var jsonSchemaMethods = context.ParseResult.GetValueForOption(jsonSchemaMethodsOption)!;
 
         // ── Валидация взаимоисключающих опций ─────────────────────────────
-        var onlyFlags = new[] { dtoOnly, validatorsOnly, maskingOnly }.Count(x => x);
+        var onlyFlags = new[] { dtoOnly, validatorsOnly, maskingOnly, jsonSchemaOnly }.Count(x => x);
         if (onlyFlags > 1)
         {
-            Console.Error.WriteLine("❌  --dto-only, --validators-only, --masking-only are mutually exclusive.");
+            Console.Error.WriteLine("❌  --dto-only, --validators-only, --masking-only, --json-schema-only are mutually exclusive.");
             context.ExitCode = 4;
             return;
         }
@@ -157,6 +176,9 @@ static Command BuildGenerateCommand()
             DtoOnly = dtoOnly,
             ValidatorsOnly = validatorsOnly,
             MaskingOnly = maskingOnly,
+            GenerateJsonSchema = jsonSchema,
+            JsonSchemaOnly = jsonSchemaOnly,
+            JsonSchemaHttpMethods = jsonSchemaMethods,
             Verbose = verbose
         };
 

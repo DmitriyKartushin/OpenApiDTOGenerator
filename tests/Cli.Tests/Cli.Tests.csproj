@@ -8,6 +8,9 @@
     <RootNamespace>OpenApiDtoGenerator.Cli.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\OpenApiDtoGenerator.Core\OpenApiDtoGenerator.Core.csproj" />
     <ProjectReference Include="..\..\src\OpenApiDtoGenerator.Generators\OpenApiDtoGenerator.Generators.csproj" />
     <ProjectReference Include="..\..\src\OpenApiDtoGenerator.Cli\OpenApiDtoGenerator.Cli.csproj" />

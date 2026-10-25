@@ -52,7 +52,7 @@ public class MaskingGeneratorTests
         var attrFile = files.SingleOrDefault(f => f.FileName == "MaskAttribute.cs");
 
         attrFile.ShouldNotBeNull();
-        attrFile!.Content.ShouldContain("public class MaskAttribute : Attribute");
+        attrFile!.Content.ShouldContain("public sealed class MaskAttribute : Attribute");
         attrFile.Content.ShouldContain("AttributeTargets.Property");
         attrFile.Content.ShouldContain("MaskStrategy Strategy");
     }

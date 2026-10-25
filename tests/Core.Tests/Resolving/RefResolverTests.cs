@@ -40,7 +40,10 @@ public class RefResolverTests
                 ["PersonInfo"] = new Dictionary<string, object?>
                 {
                     ["type"] = "object",
-                    ["properties"] = new Dictionary<string, object?> { ["id"] = "string" }
+                    ["properties"] = new Dictionary<string, object?>
+                    {
+                        ["id"] = new Dictionary<string, object?> { ["type"] = "string" }
+                    }
                 },
                 ["PassportInfo"] = new Dictionary<string, object?>
                 {
@@ -53,7 +56,10 @@ public class RefResolverTests
                 ["DocumentBase"] = new Dictionary<string, object?>
                 {
                     ["type"] = "object",
-                    ["properties"] = new Dictionary<string, object?> { ["series"] = "string" }
+                    ["properties"] = new Dictionary<string, object?>
+                    {
+                        ["series"] = new Dictionary<string, object?> { ["type"] = "string" }
+                    }
                 }
             }
         }
@@ -165,8 +171,10 @@ public class RefResolverTests
         var loader = Substitute.For<IDocumentLoader>();
         var docContent = YamlSerialize(BuildSimpleDocument());
 
-        // Ожидаем вызов с нормализованным абсолютным путём
-        loader.LoadAsync("/home/user/schemas/person.yaml", Arg.Any<CancellationToken>())
+        // Ожидаем вызов с нормализованным абсолютным путём.
+        // Path.GetFullPath — т.к. на Windows "/home/..." дополняется буквой текущего диска.
+        var expectedPath = Path.GetFullPath("/home/user/schemas/person.yaml");
+        loader.LoadAsync(expectedPath, Arg.Any<CancellationToken>())
             .Returns(docContent);
 
         var sut = new RefResolver(loader, new DocumentCache());
@@ -182,7 +190,7 @@ public class RefResolverTests
 
         // Verify вызвана загрузка с нормализованным путём
         await loader.Received(1).LoadAsync(
-            Arg.Is<string>(p => p == "/home/user/schemas/person.yaml"),
+            Arg.Is<string>(p => p == expectedPath),
             Arg.Any<CancellationToken>());
     }
 
@@ -192,18 +200,20 @@ public class RefResolverTests
         var loader = Substitute.For<IDocumentLoader>();
         var docContent = YamlSerialize(BuildSimpleDocument());
 
-        loader.LoadAsync("/home/shared/common.yaml", Arg.Any<CancellationToken>())
+        var expectedPath = Path.GetFullPath("/home/user/shared/common.yaml");
+        loader.LoadAsync(expectedPath, Arg.Any<CancellationToken>())
             .Returns(docContent);
 
         var sut = new RefResolver(loader, new DocumentCache());
 
         // Из /home/user/schemas/passport.yaml → ../shared/common.yaml
-        // должно быть /home/shared/common.yaml
+        // должно быть /home/user/shared/common.yaml (".." поднимает из schemas/ в user/)
         var result = await sut.ResolveAsync(
             "../shared/common.yaml#/components/schemas/PersonInfo",
             "/home/user/schemas/passport.yaml");
 
         result.ShouldNotBeNull();
+        await loader.Received(1).LoadAsync(expectedPath, Arg.Any<CancellationToken>());
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -263,8 +273,10 @@ public class RefResolverTests
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task ResolveAsync_SelfReferencingSchema_ThrowsCyclicReferenceException()
+    public async Task ResolveAsync_SelfReferencingSchema_ResolvesShallowlyWithoutRecursion()
     {
+        // RefResolver резолвит только верхний уровень — вложенные $ref
+        // (TreeNode → items → TreeNode) разбирает IRBuilder, поэтому здесь цикла нет
         var loader = Substitute.For<IDocumentLoader>();
         var docContent = YamlSerialize(BuildDocumentWithCycle());
 
@@ -273,11 +285,29 @@ public class RefResolverTests
 
         var sut = new RefResolver(loader, new DocumentCache());
 
-        // TreeNode → items → TreeNode (цикл)
+        var result = await sut.ResolveAsync("#/components/schemas/TreeNode", "/home/user/spec.yaml");
+
+        result.Name.ShouldBe("TreeNode");
+        result.Type.ShouldBe("object");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ReentrantResolutionOfSameRef_ThrowsCyclicReferenceException()
+    {
+        // Повторный вход в тот же $ref, пока он ещё резолвится, — это цикл
+        const string refString = "#/components/schemas/TreeNode";
+        var loader = Substitute.For<IDocumentLoader>();
+        var sut = new RefResolver(loader, new DocumentCache());
+
+        loader.LoadAsync("/home/user/spec.yaml", Arg.Any<CancellationToken>())
+            .Returns(async _ =>
+            {
+                await sut.ResolveAsync(refString, "/home/user/spec.yaml");
+                return YamlSerialize(BuildDocumentWithCycle());
+            });
+
         var ex = await Should.ThrowAsync<CyclicReferenceException>(
-            () => sut.ResolveAsync(
-                "#/components/schemas/TreeNode",
-                "/home/user/spec.yaml"));
+            () => sut.ResolveAsync(refString, "/home/user/spec.yaml"));
 
         ex.CyclicKey.ShouldContain("TreeNode");
     }

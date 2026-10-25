@@ -13,6 +13,7 @@
 - ✅ **JSON-маскировка** — `ToMaskedJson()` на каждом DTO, стратегии: Full/Partial/FirstChar/YearOnly/Hash
 - ✅ **Все виды `$ref`** — локальные, относительные файлы, абсолютные, HTTP/HTTPS
 - ✅ **Циклические ссылки** — детектируются, генерируются lazy-refs
+- ✅ **JSON Schema** — draft 2020-12 для тел POST-запросов, для валидации входящих запросов
 
 ## Установка
 
@@ -71,6 +72,33 @@ Generated/
     └── ...
 ```
 
+### JSON Schema для валидации входящих запросов
+
+```bash
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
+  --input samples/openapi_example.yaml \
+  --output ./Generated \
+  --namespace MyApp.Dto \
+  --json-schema            # или --json-schema-only
+```
+
+Для каждой POST-операции с JSON `requestBody` генерируется самодостаточная
+JSON Schema (draft 2020-12) — все `$ref` (локальные и внешние) собраны в `$defs`:
+```
+Generated/
+└── JsonSchema/
+    ├── createPerson.schema.json ← имя = operationId (или post_<path>)
+    └── index.json               ← [{ method, path, operationId, contentType, required, schemaFile }]
+```
+
+Конвертация OpenAPI 3.0 → JSON Schema:
+- `nullable: true` → `type: ["string", "null"]` (для `enum` добавляется `null`; без `type` — `anyOf` с `{type: null}`)
+- `exclusiveMinimum: true` + `minimum: N` → `exclusiveMinimum: N` (аналогично для maximum)
+- `example` → `examples: [...]`; `discriminator`, `xml`, `externalDocs`, `x-*` удаляются
+- `readOnly`-свойства исключаются из `required` (клиент их не передаёт)
+
+Для других методов: `--json-schema-methods post put patch`.
+
 ### Все опции
 
 ```
@@ -83,9 +111,12 @@ generate
   --class-prefix <TEXT>           Префикс имён классов (например "Dto")
   --class-suffix <TEXT>           Суффикс имён классов (например "Dto")
   --masking-config <FILE>         Путь к YAML-конфигу маскировки
+  --json-schema                   Дополнительно генерировать JSON Schema тел запросов
+  --json-schema-methods <M...>    HTTP-методы для JSON Schema (по умолчанию: post)
   --dto-only                      Генерировать только DTO
   --validators-only               Генерировать только валидаторы
   --masking-only                  Генерировать только masking (требует --masking-config)
+  --json-schema-only              Генерировать только JSON Schema
   --verbose, -v                   Подробный вывод
 ```
 

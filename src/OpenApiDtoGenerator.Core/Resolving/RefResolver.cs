@@ -105,7 +105,7 @@ public sealed class RefResolver : IRefResolver
     /// <summary>
     /// Определяет нормализованный ключ целевого документа.
     /// </summary>
-    private static string GetTargetDocumentKey(ParsedRef parsedRef, string currentDocumentKey)
+    public static string GetTargetDocumentKey(ParsedRef parsedRef, string currentDocumentKey)
     {
         // Локальная ссылка — целевой документ совпадает с текущим
         if (parsedRef.IsLocal)
