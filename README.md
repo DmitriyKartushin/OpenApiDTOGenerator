@@ -11,7 +11,7 @@
 - ✅ **Каскадная валидация** — `SetValidator` для вложенных объектов
 - ✅ **Условная валидация** — `.When(...)` через `discriminator`
 - ✅ **JSON-маскировка** — `ToMaskedJson()` на каждом DTO, стратегии: Full/Partial/FirstChar/YearOnly/Hash
-- ✅ **Все виды `$ref`** — локальные, относительные файлы, абсолютные, HTTP/HTTPS
+- ✅ **`$ref`** — локальные, относительные и абсолютные файлы. HTTP/HTTPS распознаются, но загрузчика пока нет: такие ссылки приводят к ошибке
 - ✅ **Циклические ссылки** — детектируются, генерируются lazy-refs
 - ✅ **JSON Schema** — draft 2020-12 для тел POST-запросов, для валидации входящих запросов
 
@@ -27,12 +27,11 @@ dotnet build
 
 ### Базовая генерация
 
-```bash
-dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
-  --input samples/openapi_example.yaml \
-  --output ./Generated \
-  --namespace MyApp.Dto
+```bat
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate --input samples/openapi_example.yaml --output Generated --namespace MyApp.Dto
 ```
+
+Команды написаны в одну строку: многострочный ввод через `\` не работает в cmd и PowerShell (в PowerShell — `` ` ``, в cmd — `^`), поэтому лучше не переносить строки.
 
 Результат:
 ```
@@ -51,12 +50,8 @@ Generated/
 
 ### С маскировкой
 
-```bash
-dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
-  --input samples/openapi_example.yaml \
-  --output ./Generated \
-  --namespace MyApp.Dto \
-  --masking-config samples/masking-config.yaml
+```bat
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate --input samples/complex/loan_application.yaml --output Generated --namespace MyApp.Dto --masking-config samples/masking-config.yaml
 ```
 
 Дополнительно генерируется:
@@ -74,13 +69,11 @@ Generated/
 
 ### JSON Schema для валидации входящих запросов
 
-```bash
-dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
-  --input samples/openapi_example.yaml \
-  --output ./Generated \
-  --namespace MyApp.Dto \
-  --json-schema            # или --json-schema-only
+```bat
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate --input samples/openapi_example.yaml --output Generated --namespace MyApp.Dto --json-schema
 ```
+
+Вместо `--json-schema` можно указать `--json-schema-only`, чтобы сгенерировать только JSON Schema.
 
 Для каждой POST-операции с JSON `requestBody` генерируется самодостаточная
 JSON Schema (draft 2020-12) — все `$ref` (локальные и внешние) собраны в `$defs`:
@@ -116,11 +109,11 @@ Generated/
 Их автоматически прогоняет `tests/Integration.Tests/ComplexRequestJsonSchemaTests.cs` —
 чтобы проверить новый случай, достаточно добавить файл.
 
-```bash
-dotnet run --project src/OpenApiDtoGenerator.Cli -- generate \
-  -i samples/complex/loan_application.yaml -o ./Generated -n Loan.Dto \
-  --json-schema-only --json-schema-methods post put
+```bat
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate -i samples/complex/loan_application.yaml -o Generated -n Loan.Dto --json-schema-only --json-schema-methods post put
 ```
+
+Одна команда принимает один `--input`: два входных файла за раз не поддерживаются.
 
 ### Все опции
 
@@ -208,7 +201,7 @@ app.MapPost("/persons", async (HttpRequest request) =>
 ```bash
 dotnet test
 
-# ~380 tests, all green
+# 383 теста, все зелёные (~10 секунд)
 ```
 
 | Проект | Что проверяет |
@@ -228,7 +221,7 @@ dotnet test
 ┌──────────────────────────────────────────────┐
 │  Core                                          │
 │  • YamlDocumentParser                          │
-│  • RefResolver (local/relative/absolute/http) │
+│  • RefResolver (local/relative/absolute; http — нет загрузчика) │
 │  • IRBuilder → SchemaNode граф                │
 └────────────┬─────────────────────────────────┘
              ▼
@@ -248,6 +241,11 @@ dotnet test
              ▼
    .cs и .schema.json файлы на диске
 ```
+
+## Презентация и заметки
+
+- `presentation/index.html` — 36 слайдов: как устроен парсинг YAML, генерация DTO/валидаторов, JSON Schema, маскировка, кейсы и известные ограничения (`→`/`←` — навигация, `F` — полный экран, `P` — PDF).
+- `presentation/speaker-notes.md` — заметки к слайдам, FAQ и воспроизводимые команды.
 
 ## Лицензия
 
