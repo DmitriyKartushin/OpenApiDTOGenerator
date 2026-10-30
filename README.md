@@ -10,10 +10,10 @@
 - ✅ **FluentValidation** — правила из `pattern`, `minLength`, `maxLength`, `format`, `minimum`/`maximum` и др.
 - ✅ **Каскадная валидация** — `SetValidator` для вложенных объектов
 - ✅ **Условная валидация** — `.When(...)` через `discriminator`
-- ✅ **JSON-маскировка** — `ToMaskedJson()` на каждом DTO, стратегии: Full/Partial/FirstChar/YearOnly/Hash
+- ⚠️ **JSON-маскировка** — `[Mask]` и `ToMaskedJson()` на каждом DTO генерируются, стратегии: Full/Partial/FirstChar/YearOnly/Hash. Но сейчас код не собирается и не маскирует (см. «Известные проблемы»)
 - ✅ **`$ref`** — локальные, относительные и абсолютные файлы. HTTP/HTTPS распознаются, но загрузчика пока нет: такие ссылки приводят к ошибке
 - ✅ **Циклические ссылки** — детектируются, генерируются lazy-refs
-- ✅ **JSON Schema** — draft 2020-12 для тел POST-запросов, для валидации входящих запросов
+- ✅ **JSON Schema** — draft 2020-12 для тел POST-запросов (`*.Rq.schema.json`) и, опционально, ответов (`*.Rs.<код>.schema.json`)
 
 ## Установка
 
@@ -48,6 +48,29 @@ Generated/
     └── ...
 ```
 
+### Простой пример: `samples/open_api_example_simple.yaml`
+
+Минимальная спецификация: один `POST /send` с телом `SendRequest` (в нём массив `Item`) и ответами `200` (`SendResponse`) и `400` (без `content`, файла не даёт).
+
+```bat
+dotnet run --project src/OpenApiDtoGenerator.Cli -- generate -i samples/open_api_example_simple.yaml -o Generated -n Simple.Dto --json-schema --json-schema-responses
+```
+
+Результат:
+```
+Generated/
+├── Dto/          SendRequest.cs, Item.cs, SendResponse.cs
+├── Validators/   SendRequestValidator.cs, ItemValidator.cs, SendResponseValidator.cs
+└── JsonSchema/   sendPayload.Rq.schema.json, sendPayload.Rs.200.schema.json, index.json
+```
+
+На этом примере хорошо видно, где генератор пока неточен (подробнее — `presentation/speaker-notes.md`, раздел 7):
+- `items: { type: array, items: $ref Item }` → `List<object>`: массивы-свойства не разворачиваются в IR.
+- `priority: integer, enum: [1, 2, 3]` → `int` без проверки enum: целочисленные enum пропускаются.
+- `status: enum: [SENT, QUEUED]` (inline) → `string` с `IsInEnum()`, который на строке отклоняет любое значение.
+- `id: format: uuid` → `Guid`, но валидатор вызывает `Guid.TryParse(v)`; то же для `sentAt` и `messageId`. Сгенерированные валидаторы этого примера не собираются (CS1503).
+- JSON Schema при этом корректна: тело запроса валидируется полностью, включая `$ref` на `Item` через `$defs`.
+
 ### С маскировкой
 
 ```bat
@@ -76,19 +99,25 @@ dotnet run --project src/OpenApiDtoGenerator.Cli -- generate --input samples/ope
 Вместо `--json-schema` можно указать `--json-schema-only`, чтобы сгенерировать только JSON Schema.
 
 Для каждой POST-операции с JSON `requestBody` генерируется самодостаточная
-JSON Schema (draft 2020-12) — все `$ref` (локальные и внешние) собраны в `$defs`:
+JSON Schema (draft 2020-12) — все `$ref` (локальные и внешние) собраны в `$defs`.
+Суффикс в имени файла показывает направление: `Rq` — тело запроса, `Rs` — тело ответа.
 ```
 Generated/
 └── JsonSchema/
-    ├── createPerson.schema.json ← имя = operationId (или post_<path>)
-    └── index.json               ← [{ method, path, operationId, contentType, required, schemaFile }]
+    ├── createPerson.Rq.schema.json       ← запрос; имя = operationId (или post_<path>)
+    ├── createPerson.Rs.201.schema.json   ← ответ с кодом 201 (только с --json-schema-responses)
+    └── index.json                        ← [{ method, path, operationId, kind, statusCode, contentType, required, schemaFile }]
 ```
+
+Схемы ответов включаются флагом `--json-schema-responses` (вместе с `--json-schema` или `--json-schema-only`):
+для каждого JSON-ответа создаётся `<operationId>.Rs.<код>.schema.json` (код `default` → `Rs.default`).
+Ответы без `content` (например, `204`) файлов не дают. Для ответов `readOnly`-свойства остаются в `required`.
 
 Конвертация OpenAPI 3.0 → JSON Schema:
 - `nullable: true` → `type: ["string", "null"]` (для `enum` добавляется `null`; без `type` — `anyOf` с `{type: null}`)
 - `exclusiveMinimum: true` + `minimum: N` → `exclusiveMinimum: N` (аналогично для maximum)
 - `example` → `examples: [...]`; `discriminator`, `xml`, `externalDocs`, `x-*` удаляются
-- `readOnly`-свойства исключаются из `required` (клиент их не передаёт)
+- `readOnly`-свойства исключаются из `required` в схемах запросов (клиент их не передаёт)
 
 Для других методов: `--json-schema-methods post put patch`.
 
@@ -129,6 +158,7 @@ generate
   --masking-config <FILE>         Путь к YAML-конфигу маскировки
   --json-schema                   Дополнительно генерировать JSON Schema тел запросов
   --json-schema-methods <M...>    HTTP-методы для JSON Schema (по умолчанию: post)
+  --json-schema-responses         Также JSON Schema тел ответов (с --json-schema или --json-schema-only)
   --dto-only                      Генерировать только DTO
   --validators-only               Генерировать только валидаторы
   --masking-only                  Генерировать только masking (требует --masking-config)
@@ -144,9 +174,8 @@ using MyApp.Dto;
 // Обычная сериализация — светит всё
 var json = JsonSerializer.Serialize(person);
 
-// Маскированная — безопасно для логов
+// Маскированная — задумано для логов, но сейчас НЕ маскирует (см. «Известные проблемы»)
 var maskedJson = person.ToMaskedJson();
-// {"lastName":"И*****","passport":{"series":"****","number":"12**56"}}
 
 // Валидация
 var validator = new PersonInfoValidator();
@@ -168,7 +197,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
 
-var schema = JsonSchema.FromFile("Generated/JsonSchema/createPerson.schema.json");
+var schema = JsonSchema.FromFile("Generated/JsonSchema/createPerson.Rq.schema.json");
 var options = new EvaluationOptions
 {
     OutputFormat = OutputFormat.List,
@@ -196,12 +225,20 @@ app.MapPost("/persons", async (HttpRequest request) =>
 
 Для нескольких операций используйте `index.json`: загрузите все схемы и выбирайте нужную по `method` + `path`.
 
+## Известные проблемы
+
+Проверено сборкой сгенерированного кода (подробности и воспроизведение — `presentation/speaker-notes.md`, раздел 7):
+- **Маскировка не работает.** `MaskingJsonConverter` не компилируется (CS0120 в `GetType()` внутри статического метода), а `MaskingJsonOptions.Default` не подключает конвертер. Даже после правки `ToMaskedJson()` возвращает JSON без маскировки.
+- **Сгенерированные валидаторы часто не собираются.** `Guid`/`DateTime`, переданные в `TryParse(string)` (CS1503), переносы строк в `WithMessage` (CS1010), ссылки на несгенерированные классы (CS0246) для внешних `$ref`, `allOf` и `oneOf`.
+- **HTTP(S) `$ref` не загружаются.** Ссылка распознаётся, но загрузчика нет.
+- **Вложенные inline-структуры теряются.** Массивы и объекты внутри свойств становятся `List<object>` / `object`; целочисленные `enum` и inline-`enum` обрабатываются неверно.
+
 ## Тесты
 
 ```bash
 dotnet test
 
-# 383 теста, все зелёные (~10 секунд)
+# 386 тестов, все зелёные (~10 секунд)
 ```
 
 | Проект | Что проверяет |
@@ -244,7 +281,7 @@ dotnet test
 
 ## Презентация и заметки
 
-- `presentation/index.html` — 36 слайдов: как устроен парсинг YAML, генерация DTO/валидаторов, JSON Schema, маскировка, кейсы и известные ограничения (`→`/`←` — навигация, `F` — полный экран, `P` — PDF).
+- `presentation/index.html` — 27 слайдов: как устроен парсинг YAML, генерация DTO/валидаторов, JSON Schema, маскировка, кейсы и известные ограничения (`→`/`←` — навигация, `F` — полный экран, `P` — PDF).
 - `presentation/speaker-notes.md` — заметки к слайдам, FAQ и воспроизводимые команды.
 
 ## Лицензия

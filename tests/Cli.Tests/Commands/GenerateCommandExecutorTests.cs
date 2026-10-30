@@ -201,7 +201,7 @@ public class GenerateCommandExecutorTests : IDisposable
         exitCode.ShouldBe(0);
         Directory.Exists(Path.Combine(_tempDir, "Dto")).ShouldBeTrue();
 
-        var schemaPath = Path.Combine(_tempDir, "JsonSchema", "createPerson.schema.json");
+        var schemaPath = Path.Combine(_tempDir, "JsonSchema", "createPerson.Rq.schema.json");
         File.Exists(schemaPath).ShouldBeTrue();
         File.Exists(Path.Combine(_tempDir, "JsonSchema", "index.json")).ShouldBeTrue();
 

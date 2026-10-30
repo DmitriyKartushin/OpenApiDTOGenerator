@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: Simple Send API
+  description: Минималистичное API для демонстрации структуры запроса/ответа
+  version: 1.0.0
+
+paths:
+  /send:
+    post:
+      operationId: sendPayload
+      summary: Отправить полезную нагрузку
+      description: Принимает объект с базовыми полями, вложенным объектом и массивом. Возвращает подтверждение.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendRequest'
+      responses:
+        '200':
+          description: Успешная отправка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendResponse'
+        '400':
+          description: Ошибка валидации
+
+components:
+  schemas:
+    SendRequest:
+      type: object
+      required:
+        - name
+        - priority
+        - items
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Имя отправителя
+        priority:
+          type: integer
+          enum: [1, 2, 3]
+          description: Приоритет (1 — низкий, 3 — высокий)
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Произвольные метаданные (ключ-значение)
+        items:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Item'
+          description: Список элементов
+
+    Item:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор элемента
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Заголовок элемента
+        tags:
+          type: array
+          items:
+            type: string
+          description: Теги элемента
+
+    SendResponse:
+      type: object
+      required:
+        - status
+        - sentAt
+        - totalItems
+      properties:
+        status:
+          type: string
+          enum: [SENT, QUEUED]
+        sentAt:
+          type: string
+          format: date-time
+          description: Время отправки
+        totalItems:
+          type: integer
+          description: Количество элементов в запросе
+        messageId:
+          type: string
+          format: uuid
+          description: Идентификатор сообщения в системе

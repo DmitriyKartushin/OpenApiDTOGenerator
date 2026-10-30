@@ -107,7 +107,8 @@ public sealed class GenerateCommandExecutor
                 _log("📐  Generating JSON Schema for request bodies...");
                 var jsonSchemaGenerator = new JsonSchemaGenerator(loader, yamlParser);
                 var jsonSchemaOptions = new JsonSchemaGeneratorOptions(
-                    HttpMethods: options.JsonSchemaHttpMethods);
+                    HttpMethods: options.JsonSchemaHttpMethods,
+                    IncludeResponses: options.JsonSchemaResponses);
 
                 var jsonSchemaFiles = await jsonSchemaGenerator.GenerateAllAsync(
                     documentTree, options.InputPath, jsonSchemaOptions, ct);

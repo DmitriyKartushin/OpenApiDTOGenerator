@@ -10,7 +10,7 @@ using OpenApiDtoGenerator.Generators.Masking;
 //   openapi-dto-gen generate --input openapi.yaml --output ./Generated
 //                            --namespace MyApp.Dto
 //                            [--masking-config masking.yaml]
-//                            [--json-schema] [--json-schema-methods post put]
+//                            [--json-schema] [--json-schema-methods post put] [--json-schema-responses]
 //                            [--dto-only | --validators-only | --masking-only | --json-schema-only]
 //                            [--verbose]
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -94,6 +94,10 @@ static Command BuildGenerateCommand()
         getDefaultValue: () => new[] { "post" })
     { AllowMultipleArgumentsPerToken = true };
 
+    var jsonSchemaResponsesOption = new Option<bool>(
+        aliases: new[] { "--json-schema-responses" },
+        description: "Also generate JSON Schema for response bodies (*.Rs.<code>.schema.json). Use with --json-schema or --json-schema-only.");
+
     var verboseOption = new Option<bool>(
         aliases: new[] { "--verbose", "-v" },
         description: "Enable verbose output.");
@@ -105,7 +109,7 @@ static Command BuildGenerateCommand()
         prefixOption, suffixOption,
         maskingConfigOption,
         dtoOnlyOption, validatorsOnlyOption, maskingOnlyOption,
-        jsonSchemaOption, jsonSchemaOnlyOption, jsonSchemaMethodsOption,
+        jsonSchemaOption, jsonSchemaOnlyOption, jsonSchemaMethodsOption, jsonSchemaResponsesOption,
         verboseOption
     };
 
@@ -126,6 +130,7 @@ static Command BuildGenerateCommand()
         var jsonSchema   = context.ParseResult.GetValueForOption(jsonSchemaOption);
         var jsonSchemaOnly = context.ParseResult.GetValueForOption(jsonSchemaOnlyOption);
         var jsonSchemaMethods = context.ParseResult.GetValueForOption(jsonSchemaMethodsOption)!;
+        var jsonSchemaResponses = context.ParseResult.GetValueForOption(jsonSchemaResponsesOption);
 
         // ── Валидация взаимоисключающих опций ─────────────────────────────
         var onlyFlags = new[] { dtoOnly, validatorsOnly, maskingOnly, jsonSchemaOnly }.Count(x => x);
@@ -179,6 +184,7 @@ static Command BuildGenerateCommand()
             GenerateJsonSchema = jsonSchema,
             JsonSchemaOnly = jsonSchemaOnly,
             JsonSchemaHttpMethods = jsonSchemaMethods,
+            JsonSchemaResponses = jsonSchemaResponses,
             Verbose = verbose
         };
 

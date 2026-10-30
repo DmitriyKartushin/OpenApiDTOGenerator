@@ -16,7 +16,8 @@ namespace OpenApiDtoGenerator.Generators.JsonSchema;
 /// ключевые слова схемы, включая вложенные inline-объекты и $ref-цепочки.
 ///
 /// Для каждой операции (по умолчанию POST) с JSON requestBody создаётся
-/// самодостаточный файл &lt;operationId&gt;.schema.json:
+/// самодостаточный файл &lt;operationId&gt;.Rq.schema.json. При включённых ответах
+/// (IncludeResponses) для каждого JSON-ответа создаётся &lt;operationId&gt;.Rs.&lt;код&gt;.schema.json:
 ///   - все $ref (локальные и внешние) переносятся в $defs → "#/$defs/Name"
 ///   - nullable: true → type: [T, "null"] (или anyOf с {type: null})
 ///   - exclusiveMinimum/exclusiveMaximum: true → числовая форма draft 2020-12
@@ -86,46 +87,40 @@ public sealed class JsonSchemaGenerator
                 if (!pathItem.TryGetValue(method, out var opObj) || opObj is not Dictionary<string, object?> operation)
                     continue;
 
-                if (!operation.TryGetValue("requestBody", out var requestBodyObj) || requestBodyObj is null)
-                    continue;
-
-                var (requestBody, bodyDocKey) = await ResolveRefChainAsync(requestBodyObj, documentKey, store, ct);
-                if (requestBody is null ||
-                    !requestBody.TryGetValue("content", out var contentObj) ||
-                    contentObj is not Dictionary<string, object?> content)
-                    continue;
-
-                var jsonMediaTypes = content
-                    .Where(c => IsJsonMediaType(c.Key) && c.Value is Dictionary<string, object?> m && m.ContainsKey("schema"))
-                    .ToList();
-
                 var operationId = operation.TryGetValue("operationId", out var opIdObj) ? opIdObj as string : null;
-                var baseName = SanitizeFileName(operationId ?? $"{method}{path}");
+                var op = new OperationInfo(
+                    method.ToUpperInvariant(),
+                    path,
+                    operationId,
+                    SanitizeFileName(operationId ?? $"{method}{path}"));
 
-                foreach (var (mediaType, mediaObj) in jsonMediaTypes)
+                if (operation.TryGetValue("requestBody", out var requestBodyObj) && requestBodyObj is not null)
                 {
-                    var schemaObj = ((Dictionary<string, object?>)mediaObj!)["schema"];
-
-                    var comment = $"Request body of {method.ToUpperInvariant()} {path}" +
-                                  (operationId is not null ? $" (operationId: {operationId})" : string.Empty) +
-                                  $", content type {mediaType}";
-
-                    var schemaDocument = await BuildSchemaDocumentAsync(schemaObj, bodyDocKey, store, options, comment, ct);
-
-                    var fileBase = jsonMediaTypes.Count > 1 ? $"{baseName}.{SanitizeFileName(mediaType)}" : baseName;
-                    var fileName = ReserveUniqueName($"{fileBase}.schema.json", usedFileNames);
-
-                    results.Add(new GeneratedFile(fileName, schemaDocument.ToJsonString(SerializerOptions)));
-
-                    index.Add(new JsonObject
+                    var (requestBody, bodyDocKey) = await ResolveRefChainAsync(requestBodyObj, documentKey, store, ct);
+                    if (requestBody is not null)
                     {
-                        ["method"] = method.ToUpperInvariant(),
-                        ["path"] = path,
-                        ["operationId"] = operationId,
-                        ["contentType"] = mediaType,
-                        ["required"] = requestBody.TryGetValue("required", out var req) && req is true,
-                        ["schemaFile"] = fileName
-                    });
+                        var target = new BodyTarget(op, BodyKind.Request, StatusCode: null,
+                            $"Request body of {op.Method} {path}" +
+                            (operationId is not null ? $" (operationId: {operationId})" : string.Empty));
+                        await AddBodyFilesAsync(requestBody, bodyDocKey, target, options, store, results, index, usedFileNames, ct);
+                    }
+                }
+
+                if (options.IncludeResponses &&
+                    operation.TryGetValue("responses", out var responsesObj) &&
+                    responsesObj is Dictionary<string, object?> responses)
+                {
+                    foreach (var (statusCode, responseObj) in responses)
+                    {
+                        var (response, responseDocKey) = await ResolveRefChainAsync(responseObj, documentKey, store, ct);
+                        if (response is null)
+                            continue;
+
+                        var target = new BodyTarget(op, BodyKind.Response, statusCode,
+                            $"Response {statusCode} of {op.Method} {path}" +
+                            (operationId is not null ? $" (operationId: {operationId})" : string.Empty));
+                        await AddBodyFilesAsync(response, responseDocKey, target, options, store, results, index, usedFileNames, ct);
+                    }
                 }
             }
         }
@@ -134,6 +129,57 @@ public sealed class JsonSchemaGenerator
             results.Add(new GeneratedFile(IndexFileName, index.ToJsonString(SerializerOptions)));
 
         return results;
+    }
+
+    private async Task AddBodyFilesAsync(
+        Dictionary<string, object?> body,
+        string bodyDocKey,
+        BodyTarget target,
+        JsonSchemaGeneratorOptions options,
+        DocumentStore store,
+        List<GeneratedFile> results,
+        JsonArray index,
+        HashSet<string> usedFileNames,
+        CancellationToken ct)
+    {
+        if (!body.TryGetValue("content", out var contentObj) || contentObj is not Dictionary<string, object?> content)
+            return;
+
+        var jsonMediaTypes = content
+            .Where(c => IsJsonMediaType(c.Key) && c.Value is Dictionary<string, object?> m && m.ContainsKey("schema"))
+            .ToList();
+
+        var isRequest = target.Kind == BodyKind.Request;
+        var schemaOptions = isRequest ? options : options with { ExcludeReadOnlyFromRequired = false };
+        var required = isRequest && body.TryGetValue("required", out var req) && req is true;
+
+        foreach (var (mediaType, mediaObj) in jsonMediaTypes)
+        {
+            var schemaObj = ((Dictionary<string, object?>)mediaObj!)["schema"];
+            var comment = $"{target.Description}, content type {mediaType}";
+
+            var schemaDocument = await BuildSchemaDocumentAsync(schemaObj, bodyDocKey, store, schemaOptions, comment, ct);
+
+            var kindPart = isRequest ? "Rq" : $"Rs.{SanitizeFileName(target.StatusCode!)}";
+            var fileBase = $"{target.Operation.BaseName}.{kindPart}";
+            if (jsonMediaTypes.Count > 1)
+                fileBase += $".{SanitizeFileName(mediaType)}";
+            var fileName = ReserveUniqueName($"{fileBase}.schema.json", usedFileNames);
+
+            results.Add(new GeneratedFile(fileName, schemaDocument.ToJsonString(SerializerOptions)));
+
+            index.Add(new JsonObject
+            {
+                ["method"] = target.Operation.Method,
+                ["path"] = target.Operation.Path,
+                ["operationId"] = target.Operation.OperationId,
+                ["kind"] = isRequest ? "Rq" : "Rs",
+                ["statusCode"] = target.StatusCode,
+                ["contentType"] = mediaType,
+                ["required"] = isRequest ? required : null,
+                ["schemaFile"] = fileName
+            });
+        }
     }
 
     /// <summary>
@@ -501,6 +547,12 @@ public sealed class JsonSchemaGenerator
     // ─────────────────────────────────────────────────────────────────────────
 
     private sealed record PendingDef(string DefName, object? Node, string DocumentKey);
+
+    private sealed record OperationInfo(string Method, string Path, string? OperationId, string BaseName);
+
+    private enum BodyKind { Request, Response }
+
+    private sealed record BodyTarget(OperationInfo Operation, BodyKind Kind, string? StatusCode, string Description);
 
     /// <summary>
     /// Распарсенные деревья документов по ключу — общие для всех файлов одного запуска.

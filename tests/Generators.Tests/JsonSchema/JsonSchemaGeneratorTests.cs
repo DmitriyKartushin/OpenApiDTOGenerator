@@ -31,7 +31,7 @@ public class JsonSchemaGeneratorTests
     {
         var files = await GenerateAsync(PersonSpec);
 
-        files.Keys.ShouldBe(new[] { "createPerson.schema.json", "index.json" }, ignoreOrder: true);
+        files.Keys.ShouldBe(new[] { "createPerson.Rq.schema.json", "index.json" }, ignoreOrder: true);
 
         var index = JsonNode.Parse(files["index.json"])!.AsArray();
         index.Count.ShouldBe(1);
@@ -39,13 +39,13 @@ public class JsonSchemaGeneratorTests
         index[0]!["path"]!.GetValue<string>().ShouldBe("/persons");
         index[0]!["contentType"]!.GetValue<string>().ShouldBe("application/json");
         index[0]!["required"]!.GetValue<bool>().ShouldBeTrue();
-        index[0]!["schemaFile"]!.GetValue<string>().ShouldBe("createPerson.schema.json");
+        index[0]!["schemaFile"]!.GetValue<string>().ShouldBe("createPerson.Rq.schema.json");
     }
 
     [Fact]
     public async Task GenerateAll_RootSchema_HasDialectAndRefToDefs()
     {
-        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.schema.json");
+        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.Rq.schema.json");
 
         schema["$schema"]!.GetValue<string>().ShouldBe("https://json-schema.org/draft/2020-12/schema");
         schema["$ref"]!.GetValue<string>().ShouldBe("#/$defs/Person");
@@ -58,7 +58,7 @@ public class JsonSchemaGeneratorTests
     {
         var files = await GenerateAsync(MultiMethodSpec);
 
-        files.Keys.ShouldBe(new[] { "createItem.schema.json", "index.json" }, ignoreOrder: true);
+        files.Keys.ShouldBe(new[] { "createItem.Rq.schema.json", "index.json" }, ignoreOrder: true);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class JsonSchemaGeneratorTests
         var files = await GenerateAsync(MultiMethodSpec, new JsonSchemaGeneratorOptions(HttpMethods: ["post", "PUT"]));
 
         files.Keys.ShouldBe(
-            new[] { "createItem.schema.json", "replaceItem.schema.json", "index.json" },
+            new[] { "createItem.Rq.schema.json", "replaceItem.Rq.schema.json", "index.json" },
             ignoreOrder: true);
     }
 
@@ -88,7 +88,7 @@ public class JsonSchemaGeneratorTests
 
         var files = await GenerateAsync(yaml);
 
-        files.ShouldContainKey("post_items_id_tags.schema.json");
+        files.ShouldContainKey("post_items_id_tags.Rq.schema.json");
     }
 
     [Fact]
@@ -112,9 +112,71 @@ public class JsonSchemaGeneratorTests
 
         var files = await GenerateAsync(yaml);
 
-        files.Keys.ShouldBe(new[] { "upload.schema.json", "index.json" }, ignoreOrder: true);
+        files.Keys.ShouldBe(new[] { "upload.Rq.schema.json", "index.json" }, ignoreOrder: true);
         JsonNode.Parse(files["index.json"])![0]!["contentType"]!.GetValue<string>()
             .ShouldBe("application/problem+json");
+    }
+
+    [Fact]
+    public async Task GenerateAll_ResponsesDisabledByDefault_NoRsFiles()
+    {
+        var files = await GenerateAsync(PersonWithResponsesSpec);
+
+        files.Keys.ShouldBe(new[] { "createPerson.Rq.schema.json", "index.json" }, ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task GenerateAll_IncludeResponses_NamesFilesByStatusCodeAndIndexesThem()
+    {
+        var files = await GenerateAsync(PersonWithResponsesSpec, new JsonSchemaGeneratorOptions(IncludeResponses: true));
+
+        files.Keys.ShouldBe(
+            new[] { "createPerson.Rq.schema.json", "createPerson.Rs.201.schema.json", "createPerson.Rs.400.schema.json", "index.json" },
+            ignoreOrder: true);
+
+        var index = JsonNode.Parse(files["index.json"])!.AsArray();
+        index.Count.ShouldBe(3);
+        index[0]!["kind"]!.GetValue<string>().ShouldBe("Rq");
+        index[0]!["statusCode"].ShouldBeNull();
+        index[0]!["required"]!.GetValue<bool>().ShouldBeFalse();
+        index[1]!["kind"]!.GetValue<string>().ShouldBe("Rs");
+        index[1]!["statusCode"]!.GetValue<string>().ShouldBe("201");
+        index[1]!["required"].ShouldBeNull();
+        index[2]!["schemaFile"]!.GetValue<string>().ShouldBe("createPerson.Rs.400.schema.json");
+    }
+
+    [Fact]
+    public async Task GenerateAll_IncludeResponses_ResolvesResponseRefAndKeepsReadOnlyRequired()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            paths:
+              /persons/{id}:
+                get:
+                  operationId: getPerson
+                  responses:
+                    '200':
+                      $ref: '#/components/responses/PersonOk'
+            components:
+              responses:
+                PersonOk:
+                  description: ok
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required: [id]
+                        properties:
+                          id:
+                            type: string
+                            readOnly: true
+            """;
+
+        var files = await GenerateAsync(yaml, new JsonSchemaGeneratorOptions(HttpMethods: ["get"], IncludeResponses: true));
+
+        files.Keys.ShouldBe(new[] { "getPerson.Rs.200.schema.json", "index.json" }, ignoreOrder: true);
+        var schema = JsonNode.Parse(files["getPerson.Rs.200.schema.json"])!.AsObject();
+        schema["required"]!.AsArray().Select(n => n!.GetValue<string>()).ShouldBe(new[] { "id" });
     }
 
     [Fact]
@@ -350,7 +412,7 @@ public class JsonSchemaGeneratorTests
             """;
 
         var files = await GenerateAsync(yaml, loader: loader, documentKey: Path.GetFullPath(DocumentKey));
-        var schema = JsonNode.Parse(files["createPayment.schema.json"])!.AsObject();
+        var schema = JsonNode.Parse(files["createPayment.Rq.schema.json"])!.AsObject();
 
         schema["$defs"]!.AsObject().Select(p => p.Key).ShouldBe(new[] { "Currency", "Money" }, ignoreOrder: true);
         Validate(schema, """{"total": {"amount": 10, "currency": "RUB"}}""").ShouldBeTrue();
@@ -391,7 +453,7 @@ public class JsonSchemaGeneratorTests
             """;
 
         var files = await GenerateAsync(yaml, loader: loader, documentKey: Path.GetFullPath(DocumentKey));
-        var schema = JsonNode.Parse(files["createOrder.schema.json"])!.AsObject();
+        var schema = JsonNode.Parse(files["createOrder.Rq.schema.json"])!.AsObject();
 
         schema["$defs"]!.AsObject().Select(p => p.Key).ShouldBe(new[] { "Address", "Address_2" }, ignoreOrder: true);
         Validate(schema, """{"billing": {}, "shipping": "Moscow"}""").ShouldBeTrue();
@@ -426,7 +488,7 @@ public class JsonSchemaGeneratorTests
     [Fact]
     public async Task GeneratedSchema_ValidPayload_PassesValidation()
     {
-        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.schema.json");
+        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.Rq.schema.json");
 
         Validate(schema, """{"id": "x", "name": "Иван", "gender": "MALE", "middleName": null}""").ShouldBeTrue();
         // id — readOnly, его можно не передавать
@@ -442,7 +504,7 @@ public class JsonSchemaGeneratorTests
     [InlineData("""{"name": "Иван", "unknown": 1}""")]          // additionalProperties: false
     public async Task GeneratedSchema_InvalidPayload_FailsValidation(string payload)
     {
-        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.schema.json");
+        var schema = await GenerateSchemaAsync(PersonSpec, "createPerson.Rq.schema.json");
 
         Validate(schema, payload).ShouldBeFalse();
     }
@@ -493,6 +555,32 @@ public class JsonSchemaGeneratorTests
             Gender:
               type: string
               enum: [MALE, FEMALE]
+        """;
+
+    private const string PersonWithResponsesSpec = """
+        openapi: 3.0.3
+        paths:
+          /persons:
+            post:
+              operationId: createPerson
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+              responses:
+                '201':
+                  description: created
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                '400':
+                  description: bad request
+                  content:
+                    application/json:
+                      schema:
+                        type: object
         """;
 
     private const string MultiMethodSpec = """

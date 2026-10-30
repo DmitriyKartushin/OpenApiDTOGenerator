@@ -47,6 +47,9 @@ public sealed record GenerateOptions
     /// <summary>HTTP-методы, для тел запросов которых генерируется JSON Schema (null — только POST).</summary>
     public IReadOnlyList<string>? JsonSchemaHttpMethods { get; init; }
 
+    /// <summary>Дополнительно генерировать JSON Schema для тел ответов (*.Rs.&lt;код&gt;.schema.json).</summary>
+    public bool JsonSchemaResponses { get; init; }
+
     /// <summary>Генерировать только JSON Schema.</summary>
     public bool JsonSchemaOnly { get; init; }
 

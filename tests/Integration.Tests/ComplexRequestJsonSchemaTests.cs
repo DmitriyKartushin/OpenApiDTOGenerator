@@ -40,9 +40,9 @@ public class ComplexRequestJsonSchemaTests
 
         files.Keys.ShouldBe(new[]
         {
-            "createLoanApplication.schema.json",
-            "replaceLoanApplication.schema.json",
-            "post_loan-applications_id_comments.schema.json",
+            "createLoanApplication.Rq.schema.json",
+            "replaceLoanApplication.Rq.schema.json",
+            "post_loan-applications_id_comments.Rq.schema.json",
             "index.json"
         }, ignoreOrder: true);
     }
@@ -50,7 +50,7 @@ public class ComplexRequestJsonSchemaTests
     [Fact]
     public async Task Generate_CreateSchema_ContainsAllReferencedDefsIncludingExternal()
     {
-        var schema = await LoadSchemaAsync("createLoanApplication.schema.json");
+        var schema = await LoadSchemaAsync("createLoanApplication.Rq.schema.json");
 
         schema["$defs"]!.AsObject().Select(p => p.Key).ShouldBe(new[]
         {
@@ -63,7 +63,7 @@ public class ComplexRequestJsonSchemaTests
     [Fact]
     public async Task Generate_ReadOnlyApplicationId_NotRequired()
     {
-        var schema = await LoadSchemaAsync("createLoanApplication.schema.json");
+        var schema = await LoadSchemaAsync("createLoanApplication.Rq.schema.json");
 
         var required = schema["$defs"]!["LoanApplication"]!["required"]!.AsArray()
             .Select(r => r!.GetValue<string>());
@@ -79,7 +79,7 @@ public class ComplexRequestJsonSchemaTests
     [MemberData(nameof(ValidPayloads))]
     public async Task Validate_ValidPayload_Passes(string payloadFile)
     {
-        var result = await EvaluateAsync("createLoanApplication.schema.json", payloadFile);
+        var result = await EvaluateAsync("createLoanApplication.Rq.schema.json", payloadFile);
 
         result.IsValid.ShouldBeTrue(FormatErrors(result));
     }
@@ -88,7 +88,7 @@ public class ComplexRequestJsonSchemaTests
     [MemberData(nameof(InvalidPayloads))]
     public async Task Validate_InvalidPayload_Fails(string payloadFile)
     {
-        var result = await EvaluateAsync("createLoanApplication.schema.json", payloadFile);
+        var result = await EvaluateAsync("createLoanApplication.Rq.schema.json", payloadFile);
 
         result.IsValid.ShouldBeFalse($"{payloadFile} должен быть отклонён схемой");
     }
@@ -98,7 +98,7 @@ public class ComplexRequestJsonSchemaTests
     {
         // В draft 2020-12 "format" по умолчанию — аннотация, не проверка.
         // Для проверки date/email/uuid валидатор нужно настроить явно.
-        var schema = Json.Schema.JsonSchema.FromText((await GeneratedFiles.Value)["createLoanApplication.schema.json"]);
+        var schema = Json.Schema.JsonSchema.FromText((await GeneratedFiles.Value)["createLoanApplication.Rq.schema.json"]);
         var payload = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(PayloadsDir, "valid_full.json")))!;
         payload["applicant"]!["birthDate"] = "не-дата";
         payload["applicant"]!["email"] = "not-an-email";
@@ -110,7 +110,7 @@ public class ComplexRequestJsonSchemaTests
     [Fact]
     public async Task Validate_PutSchema_AcceptsSamePayloadAsPost()
     {
-        var result = await EvaluateAsync("replaceLoanApplication.schema.json", "valid_full.json");
+        var result = await EvaluateAsync("replaceLoanApplication.Rq.schema.json", "valid_full.json");
 
         result.IsValid.ShouldBeTrue(FormatErrors(result));
     }
@@ -118,7 +118,7 @@ public class ComplexRequestJsonSchemaTests
     [Fact]
     public async Task Validate_CommentSchema_RecursiveReplies()
     {
-        var schema = await LoadSchemaAsync("post_loan-applications_id_comments.schema.json");
+        var schema = await LoadSchemaAsync("post_loan-applications_id_comments.Rq.schema.json");
         var jsonSchema = Json.Schema.JsonSchema.FromText(schema.ToJsonString());
 
         Evaluate(jsonSchema, """{"text": "a", "replies": [{"text": "b", "replies": [{"text": "c"}]}]}""")

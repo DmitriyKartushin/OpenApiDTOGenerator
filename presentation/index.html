@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenAPI DTO Generator — как работает проект</title>
+<title>OpenAPI DTO Generator — как устроено внутри</title>
 <style>
   :root{
     --bg:#0a0e14; --panel:#11161d; --panel2:#0d1219; --line:#232a35;
@@ -31,7 +31,6 @@
   .slide[data-accent="mask"]{--accent:var(--mask)}
   .slide[data-accent="core"]{--accent:var(--core)}
 
-  /* ── header ─────────────────────────────────────────────── */
   .s-head{display:flex;align-items:baseline;gap:16px;flex:0 0 auto;margin-bottom:18px}
   .kicker{font-size:11.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--accent);
     font-weight:700;white-space:nowrap;padding-top:4px}
@@ -49,7 +48,6 @@
   .tiny{font-size:12px;line-height:1.4}
   b,strong{color:#fff;font-weight:650}
 
-  /* ── blocks ─────────────────────────────────────────────── */
   .cols{display:grid;gap:22px;flex:0 0 auto}
   .c2{grid-template-columns:1fr 1fr}
   .c2u{grid-template-columns:1.15fr .85fr}
@@ -73,7 +71,7 @@
     background:#ffffff0f;border:1px solid #ffffff10;border-radius:4px;padding:1px 5px;color:#cfe3ff}
   pre{margin:0;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
     padding:12px 14px;overflow:auto;font-family:"Cascadia Code","Consolas",ui-monospace,monospace;
-    font-size:12.4px;line-height:1.52;color:#c9d5e2;tab-size:4}
+    font-size:12.2px;line-height:1.5;color:#c9d5e2;tab-size:4}
   pre.big{font-size:13.2px}
   pre::-webkit-scrollbar{height:6px;width:6px}
   pre::-webkit-scrollbar-thumb{background:#2a323d;border-radius:4px}
@@ -81,7 +79,8 @@
     letter-spacing:1.4px;text-transform:uppercase;color:var(--dim);margin:0 0 5px}
   .code-label i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
   .kw{color:#ff7b72}.ty{color:#79c0ff}.st{color:#a5d6ff}.cm{color:#7d8896;font-style:italic}
-  .at{color:#d2a8ff}.mt{color:#d2a8ff}.nm{color:#79c0ff}.pr{color:#ffa657}
+  .at{color:#d2a8ff}.nm{color:#79c0ff}
+  .bad{color:#f5b8b8;background:#3a1212;border-radius:3px}
 
   table{border-collapse:collapse;width:100%;font-size:13.2px}
   th{text-align:left;font-size:10.5px;letter-spacing:1.1px;text-transform:uppercase;
@@ -91,24 +90,17 @@
   td code{font-size:12px;background:transparent;border:none;padding:0;color:#cfe3ff}
   td:first-child{color:#e6edf3}
   .tbl-dense td{padding:3.5px 8px;font-size:12.6px}
-  .tbl-x td{padding:2px 8px;font-size:11.9px;line-height:1.28}
-  .tbl-x th{padding:0 8px 4px}
   .y{color:#3fb950;font-weight:700}.w{color:#d29922;font-weight:700}.n{color:#f85149;font-weight:700}
-  .d{color:#484f58;font-weight:700}
-
-  .tag{display:inline-block;font:600 10.5px/1.6 ui-monospace,monospace;letter-spacing:.6px;
-    padding:1px 7px;border-radius:20px;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);
-    color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);white-space:nowrap}
-  .tag.gray{border-color:#30363d;color:var(--muted);background:#ffffff08}
+  .d{color:#6e7681;font-weight:700}
 
   .note{border-radius:8px;padding:10px 13px;font-size:13.4px;line-height:1.45;margin:10px 0;
     border:1px solid #3d2f12;background:#2a1f0a;color:#f0d9a8}
   .note.blue{border-color:#173a5e;background:#0d1f2f;color:#c3dcf5}
   .note.green{border-color:#1b3d25;background:#0d2013;color:#bde5c8}
+  .note.red{border-color:#5c1f1f;background:#2a0f0f;color:#f5b8b8}
   .note b{color:#fff}
   .note code{background:#ffffff12;border-color:#ffffff14}
 
-  /* pipeline */
   .flow{display:flex;align-items:stretch;gap:0;margin:4px 0 12px}
   .fbox{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
   .fbox .t{font:600 10px/1 ui-monospace,monospace;letter-spacing:1.3px;color:var(--dim);
@@ -117,21 +109,19 @@
   .fbox .d{font-size:11.5px;color:var(--muted);line-height:1.35}
   .farr{display:grid;place-items:center;width:26px;color:#3d444d;font-size:17px;flex:0 0 auto}
 
-  /* title slide */
   .title{justify-content:center;padding:0 90px}
   .t-kicker{font:700 12px/1 ui-monospace,monospace;letter-spacing:3px;text-transform:uppercase;
     color:var(--core);margin-bottom:22px}
-  h1{font-size:62px;line-height:1;letter-spacing:-2px;margin:0 0 18px;font-weight:750}
+  h1{font-size:60px;line-height:1;letter-spacing:-2px;margin:0 0 18px;font-weight:750}
   h1 span{background:linear-gradient(92deg,#58a6ff,#3fb950 55%,#bc8cff);
     -webkit-background-clip:text;background-clip:text;color:transparent}
-  .t-sub{font-size:19px;color:#b9c2cd;line-height:1.45;max-width:860px;margin:0 0 34px}
+  .t-sub{font-size:19px;color:#b9c2cd;line-height:1.45;max-width:880px;margin:0 0 34px}
   .t-meta{display:flex;gap:44px;margin-bottom:38px}
   .t-meta div{display:flex;flex-direction:column}
   .t-meta b{font-size:30px;line-height:1;color:#fff;letter-spacing:-1px}
   .t-meta span{font-size:11.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin-top:7px}
-  .t-hint{font:500 11.5px/1 ui-monospace,monospace;color:#4d5561;letter-spacing:.8px}
+  .t-hint{font:500 11.5px/1.5 ui-monospace,monospace;color:#4d5561;letter-spacing:.8px}
 
-  .split{display:grid;grid-template-columns:1fr 1fr;gap:24px}
   .num-list{counter-reset:n;list-style:none;margin:0;padding:0}
   .num-list li{counter-increment:n;position:relative;padding-left:34px;margin-bottom:9px;
     font-size:14.5px;line-height:1.45;color:#cfd8e3}
@@ -139,12 +129,7 @@
     display:grid;place-items:center;border-radius:50%;font:700 11px/1 ui-monospace,monospace;
     color:#05080c;background:var(--accent)}
   .num-list li b{color:#fff}
-  .num-list.sm li{font-size:13.4px;margin-bottom:6px}
 
-  .filetag{font:600 11px/1 ui-monospace,monospace;color:var(--dim);
-    border:1px dashed #30363d;border-radius:5px;padding:3px 6px;display:inline-block;margin:2px 4px 2px 0}
-
-  /* chrome */
   #bar{position:fixed;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#58a6ff,#3fb950,#f0883e,#bc8cff);
     width:0;transition:width .18s ease;z-index:50}
   #count{position:fixed;right:16px;bottom:12px;font:600 11px/1 ui-monospace,monospace;
@@ -170,1619 +155,760 @@
 
 <div id="stage">
 
-<!-- ═════════════════════════════════════════════════════════════ 1 -->
+<!-- 1 -->
 <section class="slide title active" data-accent="core">
-  <div class="t-kicker">Project deep dive · .NET 8 · CLI + библиотеки</div>
+  <div class="t-kicker">.NET 8 · CLI + библиотеки</div>
   <h1>OpenAPI <span>DTO Generator</span></h1>
-  <p class="t-sub">Один YAML → C# DTO, FluentValidation-валидаторы, JSON Schema (draft 2020-12)
-    для входящих запросов и маскировка персональных данных при логировании.</p>
+  <p class="t-sub">Один файл спецификации OpenAPI 3.x превращается в C#-классы, FluentValidation-валидаторы,
+    маскировку полей и JSON Schema тел запросов. В презентации — как каждая часть устроена внутри,
+    почему так, и где она пока ломается.</p>
   <div class="t-meta">
-    <div><b>3+4</b><span>проекта в решении</span></div>
-    <div><b>383</b><span>теста · все зелёные</span></div>
-    <div><b>4</b><span>артефакта из 1 файла</span></div>
+    <div><b>4</b><span>артефакта из одного YAML</span></div>
+    <div><b>386</b><span>тестов, все проходят</span></div>
     <div><b>1</b><span>внешняя зависимость в Core</span></div>
   </div>
-  <div class="t-hint">→ / ← слайды · F полный экран · P печать в PDF · YamlDotNet 15.1.2 · FluentValidation нужен только сгенерированным валидаторам</div>
+  <div class="t-hint">→ / ← слайды · F полный экран · P печать в PDF · YamlDotNet 15.1.2</div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 2 -->
+<!-- 2 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Зачем</div><h2>Какую проблему решает проект</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Зачем</div><h2>Что получаем из одного файла и в каком состоянии это сейчас</h2><div class="num"></div></div>
   <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <h3 class="muted">Если писать руками</h3>
-        <div class="card" style="border-left-color:#f85149"><h4>DTO расходятся с контрактом</h4>
-          <p>15 схем × 8 полей: переименовали <code>middleName</code> в спецификации — забыли в классе,
-          <code>[JsonPropertyName]</code> остался старый, поле «пропало» в проде.</p></div>
-        <div class="card" style="border-left-color:#f85149"><h4>Валидация дублируется</h4>
-          <p><code>pattern</code>, <code>minLength</code>, <code>maximum</code> уже описаны в OpenAPI —
-          но в коде их надо переписать в <code>RuleFor(...)</code> и держать в синхроне.</p></div>
-        <div class="card" style="border-left-color:#f85149"><h4>PII утекает в логи</h4>
-          <p>Паспорт, ИНН, СНИЛС попадают в структурные логи и трейсы.
-          Нужен безопасный способ сериализации «того же» объекта.</p></div>
-        <div class="card" style="border-left-color:#f85149"><h4>400 приходит слишком поздно</h4>
-          <p>Кривой JSON доходит до бизнес-логики и падает в неожиданном месте,
-          а не на границе приложения с указанием пути поля.</p></div>
-      </div>
-      <div>
-        <h3 class="muted">Если генерировать из спецификации</h3>
-        <div class="card" style="border-left-color:#3fb950"><h4><span class="tag">Dto/</span> C#-классы</h4>
-          <p>Классы и enum'ы с <code>[JsonPropertyName]</code>, XML-doc, nullable-аннотациями
-          и наследованием через <code>allOf</code>.</p></div>
-        <div class="card" style="border-left-color:#f0883e"><h4><span class="tag">Validators/</span> FluentValidation</h4>
-          <p><code>AbstractValidator&lt;T&gt;</code> с правилами из схемы, каскадом
-          <code>SetValidator</code> и условными правилами <code>.When(...)</code>.</p></div>
-        <div class="card" style="border-left-color:#bc8cff"><h4><span class="tag">Masking/</span> безопасный JSON</h4>
-          <p><code>[Mask(...)]</code> на полях + <code>ToMaskedJson()</code> на каждом DTO:
-          одни и те же данные, но без PII.</p></div>
-        <div class="card" style="border-left-color:#3fb950"><h4><span class="tag">JsonSchema/</span> схема тела запроса</h4>
-          <p>Самодостаточная JSON Schema (draft 2020-12) на каждую операцию —
-          валидация сырого тела до десериализации.</p></div>
-      </div>
-    </div>
-    <div class="note blue"><b>Идея:</b> спецификация OpenAPI — единственный источник истины.
-      Артефакты не «пишутся один раз», а перегенерируются в CI, поэтому расхождение
-      «контракт ↔ код» становится невозможным по построению.</div>
+    <table>
+      <tr><th style="width:230px">Артефакт</th><th style="width:330px">Что создаётся</th><th style="width:150px">Статус</th><th>Зачем</th></tr>
+      <tr><td><code>Dto/</code></td><td>классы и enum с <code>[JsonPropertyName]</code></td><td class="w">работает частично</td>
+        <td>типы из контракта, а не из головы разработчика</td></tr>
+      <tr><td><code>Validators/</code></td><td><code>AbstractValidator&lt;T&gt;</code> с правилами из схемы</td><td class="w">часто не собирается</td>
+        <td>правила <code>pattern</code>, <code>minLength</code>, <code>maximum</code> не переписываются руками</td></tr>
+      <tr><td><code>Masking/</code></td><td><code>[Mask]</code>, <code>ToMaskedJson()</code></td><td class="n">не маскирует</td>
+        <td>PII вне логов — задумано, но пока не работает</td></tr>
+      <tr><td><code>JsonSchema/</code></td><td>самодостаточная схема тела запроса (и ответа по флагу)</td><td class="y">работает, тестируется</td>
+        <td>проверка сырого JSON до десериализации</td></tr>
+    </table>
+    <div class="note blue"><b>Главная идея:</b> спецификация — единственный источник правды. Генерация
+      запускается в CI, поэтому расхождение «контракт ↔ код» становится заметным на сборке, а не на ревью.</div>
+    <div class="note"><b>Честно:</b> статусы в таблице — по результатам проверки сборкой. Подробности — слайды 15 и 24.</div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 3 -->
+<!-- 3 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Пайплайн</div><h2>Весь путь данных: от YAML до файлов на диске</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Архитектура</div><h2>Путь данных: YAML → дерево → IR → файлы</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="flow">
       <div class="fbox"><div class="t">вход</div><div class="n">OpenAPI 3.x</div>
-        <div class="d">YAML или JSON, локальные и внешние <code>$ref</code></div></div>
+        <div class="d">YAML или JSON; <code>$ref</code> локальные и внешние</div></div>
       <div class="farr">›</div>
       <div class="fbox"><div class="t">Core · Parsing</div><div class="n">YamlDocumentParser</div>
-        <div class="d">YamlDotNet RepresentationModel → Dictionary / List / скаляры</div></div>
-      <div class="farr">›</div>
-      <div class="fbox"><div class="t">Core · Resolving</div><div class="n">RefResolver</div>
-        <div class="d">RefParser · DocumentCache · JsonPointer · CycleDetector</div></div>
+        <div class="d">дерево из словарей, списков и скаляров</div></div>
       <div class="farr">›</div>
       <div class="fbox"><div class="t">Core · Parsing</div><div class="n">IRBuilder</div>
-        <div class="d">граф <code>SchemaNode</code> — типы, свойства, правила</div></div>
+        <div class="d">граф <code>SchemaNode</code>, разрешённые <code>$ref</code></div></div>
     </div>
-
     <div class="flow">
-      <div class="fbox" style="border-color:#1e4a6b"><div class="t" style="color:#58a6ff">Generators</div>
-        <div class="n">DtoGenerator</div><div class="d">TypeMapper · NameHelper</div></div>
+      <div class="fbox" style="border-color:#1e4a6b"><div class="t" style="color:#58a6ff">от IR</div>
+        <div class="n">DtoGenerator · ValidatorGenerator · MaskingGenerator</div><div class="d">читают <code>SchemaNode</code></div></div>
       <div class="farr">·</div>
-      <div class="fbox" style="border-color:#5c3a1c"><div class="t" style="color:#f0883e">Generators</div>
-        <div class="n">ValidatorGenerator</div><div class="d">RuleMapper · SetValidator · When</div></div>
-      <div class="farr">·</div>
-      <div class="fbox" style="border-color:#3c2a52"><div class="t" style="color:#bc8cff">Generators</div>
-        <div class="n">MaskingGenerator</div><div class="d">инфраструктура + partial DTO</div></div>
-      <div class="farr">·</div>
-      <div class="fbox" style="border-color:#1e4a29"><div class="t" style="color:#3fb950">Generators</div>
-        <div class="n">JsonSchemaGenerator</div><div class="d">по «сырому» дереву, не по IR</div></div>
+      <div class="fbox" style="border-color:#1e4a29"><div class="t" style="color:#3fb950">от сырого дерева</div>
+        <div class="n">JsonSchemaGenerator</div><div class="d">читает исходный словарь документа</div></div>
     </div>
-
     <div class="flow">
       <div class="fbox"><div class="t">Cli</div><div class="n">GenerateCommandExecutor</div>
-        <div class="d">System.CommandLine → опции → запись файлов</div></div>
+        <div class="d">разбирает флаги, вызывает генераторы, пишет файлы</div></div>
       <div class="farr">›</div>
       <div class="fbox" style="flex:2"><div class="t">выход</div><div class="n">Generated/</div>
         <div class="d"><code>Dto/</code> · <code>Validators/</code> · <code>Masking/</code> · <code>JsonSchema/</code></div></div>
     </div>
-
-    <div class="note"><b>Ключевая развилка:</b> три генератора работают по IR (<code>SchemaNode</code>),
-      а <code>JsonSchemaGenerator</code> — по исходному дереву документа. Причина на слайде 22:
-      для JSON Schema нужны <i>все</i> ключевые слова, включая те, которые IR не хранит.</div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 4 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">CLI</div><h2>Запуск: одна команда, предсказуемый результат</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <div class="code-label"><i></i>shell</div>
-        <pre class="big">dotnet run --project src/OpenApiDtoGenerator.Cli -- generate -i samples/openapi_example.yaml -o Generated -n MyApp.Dto --masking-config samples/masking-config.yaml --json-schema --json-schema-methods post put</pre>
-        <div class="code-label" style="margin-top:12px"><i></i>что появится на диске</div>
-        <pre>Generated/
-├── Dto/          13 файлов (классы + enum'ы)
-├── Validators/   13 файлов (AbstractValidator&lt;T&gt;)
-├── Masking/      10 файлов (5 инфраструктура + 5 partial)
-└── JsonSchema/   createPerson.schema.json + index.json</pre>
-        <div class="note green small" style="margin-top:10px">Все цифры — реальный вывод на
-          <code>samples/openapi_example.yaml</code>: 15 схем → 13 DTO + 13 валидаторов.</div>
-      </div>
-      <div>
-        <table class="tbl-dense">
-          <tr><th>Флаг</th><th>Смысл</th></tr>
-          <tr><td><code>-i, --input</code></td><td>YAML/JSON спецификация (обязателен)</td></tr>
-          <tr><td><code>-o, --output</code></td><td>каталог вывода, по умолчанию <code>./Generated</code></td></tr>
-          <tr><td><code>-n, --namespace</code></td><td>namespace DTO (обязателен)</td></tr>
-          <tr><td><code>--validators-namespace</code></td><td>по умолчанию <code>&lt;ns&gt;.Validators</code></td></tr>
-          <tr><td><code>--masking-namespace</code></td><td>по умолчанию <code>&lt;ns&gt;.Masking</code></td></tr>
-          <tr><td><code>--class-prefix/-suffix</code></td><td>имена классов: <code>DtoPersonInfo</code></td></tr>
-          <tr><td><code>--masking-config</code></td><td>включает генерацию маскировки</td></tr>
-          <tr><td><code>--json-schema</code></td><td>дополнительно JSON Schema</td></tr>
-          <tr><td><code>--json-schema-methods</code></td><td>по умолчанию только <code>post</code></td></tr>
-          <tr><td><code>--dto-only</code> и др.</td><td><code>--validators-only</code>, <code>--masking-only</code>, <code>--json-schema-only</code></td></tr>
-          <tr><td><code>-v, --verbose</code></td><td>печатает каждый записанный файл</td></tr>
-        </table>
-        <div class="note blue small" style="margin-top:10px"><b>Коды выхода:</b>
-          <code>0</code> успех · <code>1</code> неожиданная ошибка · <code>2</code> файл не найден ·
-          <code>3</code> ошибка формата · <code>4</code> несовместимые флаги. Удобно для CI.</div>
-      </div>
+    <div class="cols c2" style="margin-top:6px">
+      <div class="card"><h4>Почему две модели данных</h4>
+        <p>IR сознательно беднее документа: в нём нет <code>additionalProperties</code>, <code>readOnly</code>,
+        <code>examples</code>, <code>uniqueItems</code>. Для DTO и валидаторов этого достаточно. Для JSON Schema — нет,
+        поэтому она идёт по сырому дереву (слайд 17).</p></div>
+      <div class="card"><h4>Почему генераторы не пишут на диск</h4>
+        <p>Каждый генератор возвращает <code>GeneratedFile(Name, Content)</code>. Тесты сравнивают строки,
+        ввод-вывод сосредоточен в CLI.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 5 -->
+<!-- 4 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Архитектура</div><h2>Три библиотеки, четыре тестовых проекта — и одно правило</h2><div class="num"></div></div>
-  <div class="s-body">
-    <table>
-      <tr><th style="width:190px">Проект</th><th style="width:250px">Зависит от</th><th>Отвечает за</th><th style="width:250px">Не знает про</th></tr>
-      <tr><td><b>Core</b></td><td>YamlDotNet</td>
-        <td>Парсинг YAML/JSON, <code>$ref</code>, JSON Pointer, кеш документов, циклы,
-          модель IR (<code>SchemaNode</code>, <code>PropertyNode</code>, <code>ValidationRules</code>)</td>
-        <td>как выглядит C#-код, что такое файл на диске</td></tr>
-      <tr><td><b>Generators</b></td><td>Core</td>
-        <td>Превращение IR в текст: <code>.cs</code> и <code>.schema.json</code>.
-          Возвращает <code>GeneratedFile(FileName, Content)</code> — <b>в память, не на диск</b></td>
-        <td>CLI, пути, консоль, ошибки ввода-вывода</td></tr>
-      <tr><td><b>Cli</b></td><td>Core, Generators, System.CommandLine</td>
-        <td>Разбор аргументов, валидация флагов, единственное место с <code>File.WriteAllText</code></td>
-        <td>внутреннее устройство парсинга и генераторов</td></tr>
-      <tr><td><b>Tests ×4</b></td><td>все</td>
-        <td>Core (154) · Generators (147) · Cli (30) · Integration (52)</td>
-        <td>—</td></tr>
-    </table>
-
-    <div class="cols c3" style="margin-top:16px">
-      <div class="card"><h4>Почему не пишем на диск из генераторов</h4>
-        <p>Все 147 тестов генераторов сравнивают строки — быстро, без временных каталогов.
-        IO-ошибки живут ровно в одном классе.</p></div>
-      <div class="card"><h4>Почему IR, а не прямое чтение дерева</h4>
-        <p>Один контракт между парсингом и эмиттерами: генератор можно тестировать
-        на рукописном <code>SchemaNode</code>, вообще без YAML.</p></div>
-      <div class="card"><h4>Куда добавлять новое</h4>
-        <p>Новый артефакт — новый класс в <code>Generators</code> + 5 строк в executor.
-        CLI и Core при этом не меняются.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 6 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Пайплайн · код</div><h2>6 шагов внутри GenerateCommandExecutor</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">CLI</div><h2>Что делает executor и когда включается каждый генератор</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2u">
       <div>
         <ol class="num-list">
-          <li><b>Читаем файл</b> — <code>File.ReadAllTextAsync</code>. Ошибка → код 2.</li>
-          <li><b>Парсим</b> — <code>new YamlDocumentParser().Parse(content)</code> →
-            дерево <code>Dictionary&lt;string, object?&gt;</code>. Ошибка → код 3.</li>
-          <li><b>Строим IR</b> — <code>IRBuilder(refResolver).BuildAsync(tree, inputPath)</code>
-            → <code>Dictionary&lt;string, SchemaNode&gt;</code>. Здесь же резолвятся все <code>$ref</code>.</li>
-          <li><b>Генерируем</b> — DTO / Validators / Masking / JSON Schema,
-            каждый под своим флагом (<code>ShouldGenerate…</code> в <code>GenerateOptions</code>).</li>
-          <li><b>Пишем</b> — <code>WriteFiles(files, Path.Combine(output, "Dto"))</code>:
-            <code>Directory.CreateDirectory</code> + <code>File.WriteAllText</code> (UTF-8 без BOM).</li>
-          <li><b>Возвращаем код</b> — <code>0</code>, а <code>FileNotFoundException</code> /
-            <code>FormatException</code> / прочее ловятся в одном <code>try/catch</code>.</li>
+          <li><b>Читает файл.</b> Нет файла — код 2.</li>
+          <li><b>Парсит</b> <code>YamlDocumentParser</code>. Ошибка формата — код 3.</li>
+          <li><b>Строит IR</b> через <code>IRBuilder</code>, который вызывает <code>RefResolver</code> для каждой ссылки.</li>
+          <li><b>Генерирует</b> каждый артефакт, если он не выключен флагом <code>--*-only</code>.</li>
+          <li><b>Пишет файлы</b> в подкаталоги <code>Dto/</code>, <code>Validators/</code>, <code>Masking/</code>, <code>JsonSchema/</code>.</li>
         </ol>
+        <div class="note small"><b>Маскировка включается наличием конфига</b>, а не флагом:
+          без <code>--masking-config</code> нет правил, нет инфраструктуры и нет <code>partial</code>-классов.</div>
       </div>
       <div>
-        <div class="code-label"><i></i>Program.cs — флаги «только»</div>
-        <pre>var onlyFlags = new[] { dtoOnly, validatorsOnly,
-                        maskingOnly, jsonSchemaOnly }.Count(x =&gt; x);
-if (onlyFlags &gt; 1) { /* код 4 */ }
-if (maskingOnly &amp;&amp; maskingCfg is null) { /* код 4 */ }</pre>
-        <div class="code-label" style="margin-top:12px"><i></i>GenerateOptions.cs — что включать</div>
-        <pre>ShouldGenerateDto        =&gt; !ValidatorsOnly &amp;&amp; !MaskingOnly &amp;&amp; !JsonSchemaOnly;
-ShouldGenerateValidators =&gt; !DtoOnly &amp;&amp; !MaskingOnly &amp;&amp; !JsonSchemaOnly;
-ShouldGenerateMasking    =&gt; … &amp;&amp; MaskingConfig is not null;
+        <div class="code-label"><i></i>GenerateOptions — что включено</div>
+        <pre>ShouldGenerateMasking    =&gt; <span class="cm">…</span> &amp;&amp; MaskingConfig is not null;
 ShouldGenerateJsonSchema =&gt; JsonSchemaOnly || (GenerateJsonSchema &amp;&amp; …);
-NeedsPartialDto          =&gt; ShouldGenerateMasking;  <span class="cm">// partial нужен для ToMaskedJson()</span></pre>
-        <div class="note small" style="margin-top:10px">Маскировка включается не флагом, а наличием
-          <code>--masking-config</code>: нет конфига — нет правил и нет инфраструктуры.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 7 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Парсинг YAML · 1/3</div><h2>YamlDotNet <i>RepresentationModel</i>, а не десериализация в POCO</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <p><code>YamlStream.Load(reader)</code> даёт дерево узлов <b>как есть</b> — без схемы,
-        без модели OpenAPI, без потерь:</p>
-        <ul class="bul tight">
-          <li>сохраняется <b>стиль скаляра</b> (в кавычках / без) — критично для строковых кодов;</li>
-          <li>неизвестные ключи (<code>x-*</code>, vendor-расширения) не ломают парсинг;</li>
-          <li>JSON проходит тем же путём — JSON является подмножеством YAML,
-            поэтому отдельный <code>JsonDocumentParser</code> не нужен;</li>
-          <li>любой набор ключей можно конвертировать в текст без «полной» модели OpenAPI.</li>
-        </ul>
-        <div class="note small"><b>Ограничение:</b> берётся только <code>Documents[0]</code> —
-          multi-document YAML (<code>---</code>) не поддерживается.</div>
-      </div>
-      <div>
-        <div class="code-label"><i></i>YamlDocumentParser.cs</div>
-        <pre><span class="kw">var</span> yamlStream = <span class="kw">new</span> <span class="ty">YamlStream</span>();
-<span class="kw">using var</span> reader = <span class="kw">new</span> <span class="ty">StringReader</span>(rawContent);
-yamlStream.Load(reader);
-
-<span class="kw">var</span> root = yamlStream.Documents[<span class="nm">0</span>].RootNode;
-<span class="kw">return</span> ConvertNode(root);
-
-<span class="cm">// три вида узлов — и всё</span>
-node <span class="kw">switch</span>
-{
-    <span class="ty">YamlMappingNode</span>  m =&gt; ConvertMapping(m),   <span class="cm">// → Dictionary</span>
-    <span class="ty">YamlSequenceNode</span> s =&gt; ConvertSequence(s),  <span class="cm">// → List</span>
-    <span class="ty">YamlScalarNode</span>   v =&gt; ConvertScalar(v),    <span class="cm">// → scalar</span>
-    _ =&gt; <span class="kw">throw new</span> <span class="ty">InvalidOperationException</span>(…)
-};</pre>
-        <div class="note small">Любая ошибка YamlDotNet оборачивается в
-          <code>FormatException("Failed to parse YAML content: …")</code> — CLI превращает её в код 3
-          и не печатает стек, если не <code>--verbose</code>.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 8 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Парсинг YAML · 2/3</div><h2>Главная ловушка: <code>'4510'</code> и <code>4510</code> — разные вещи</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <div class="code-label"><i></i>YAML</div>
-        <pre>series: '4510'      <span class="cm"># в кавычках → строка "4510"</span>
-number: 4510        <span class="cm"># plain   → число 4510</span>
-isActive: true      <span class="cm"># → bool</span>
-empty: null         <span class="cm"># → null</span>
-rate: 1.5e3         <span class="cm"># → double 1500</span></pre>
-        <div class="code-label" style="margin-top:12px"><i></i>ConvertScalar — правило одной строки</div>
-        <pre><span class="kw">var</span> isQuoted = scalar.Style <span class="kw">is</span> <span class="ty">ScalarStyle</span>.SingleQuoted
-                          <span class="kw">or</span> <span class="ty">ScalarStyle</span>.DoubleQuoted;
-
-<span class="kw">if</span> (isQuoted) <span class="kw">return</span> value;   <span class="cm">// всегда строка</span>
-<span class="kw">return</span> InferPlainScalarType(value); <span class="cm">// угадываем тип</span></pre>
-      </div>
-      <div>
-        <h3 class="muted">Порядок вывода типа для plain-скаляра</h3>
-        <table class="tbl-dense">
-          <tr><th>Проверка</th><th>Результат</th></tr>
-          <tr><td><code>"null"</code>, <code>"~"</code>, пусто</td><td><code>null</code></td></tr>
-          <tr><td><code>true/false</code> (3 регистра)</td><td><code>bool</code></td></tr>
-          <tr><td><code>int.TryParse</code></td><td><code>int</code></td></tr>
-          <tr><td><code>long.TryParse</code></td><td><code>long</code></td></tr>
-          <tr><td><code>double.TryParse</code></td><td><code>double</code></td></tr>
-          <tr><td>иначе</td><td><code>string</code></td></tr>
+NeedsPartialDto          =&gt; ShouldGenerateMasking;</pre>
+        <table class="tbl-dense" style="margin-top:10px">
+          <tr><th>Код</th><th>Значение</th></tr>
+          <tr><td><code>0</code></td><td>успех</td></tr>
+          <tr><td><code>1</code></td><td>неожиданная ошибка</td></tr>
+          <tr><td><code>2</code></td><td>входной файл не найден</td></tr>
+          <tr><td><code>3</code></td><td>ошибка YAML/JSON или конфига маскировки</td></tr>
+          <tr><td><code>4</code></td><td>несовместимые флаги</td></tr>
         </table>
-        <p class="small muted" style="margin-top:8px">Везде <code>InvariantCulture</code>:
-          <code>1.5</code> — это дробное, независимо от локали машины.</p>
-        <div class="note"><b>Почему это не педантизм:</b> <code>minLength</code>, <code>maxLength</code>
-          и <code>pattern</code> применяются только к <code>string</code>. Если серия паспорта
-          «стала числом», правило молча исчезнет, а поле в DTO станет <code>int</code>.
-          Отсюда требование к спекам: коды и номера — в кавычках.</div>
-        <div class="note blue small">Побочный эффект: <code>ExtractInt</code> в <code>IRBuilder</code>
-          принимает и <code>int</code>, и <code>long</code> — YamlDotNet может вернуть любое из двух.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 9 -->
+<!-- 5 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Парсинг YAML · 3/3</div><h2>Object-граф: три типа вместо модели OpenAPI</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Пример</div><h2>Один вход, четыре выхода: <code>open_api_example_simple.yaml</code></h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div>
+        <div class="code-label"><i></i>вход: POST /send</div>
+        <pre>SendRequest:
+  required: [name, priority, items]
+  properties:
+    name:     {type: string, minLength: 1, maxLength: 100}
+    priority: {type: integer, enum: [1, 2, 3]}
+    items:
+      type: array
+      minItems: 1
+      items: {$ref: '#/components/schemas/Item'}
+Item:
+  required: [id, title]
+  properties:
+    id:    {type: string, format: uuid}
+    title: {type: string, minLength: 1, maxLength: 200}</pre>
+      </div>
+      <div>
+        <div class="code-label"><i></i>выход: SendRequest.cs (фактический)</div>
+        <pre>[JsonPropertyName("name")]
+public string Name { get; set; }
+[JsonPropertyName("priority")]
+public int Priority { get; set; }        <span class="cm">// enum потерян</span>
+[JsonPropertyName("items")]
+public List&lt;object&gt; Items { get; set; } <span class="cm">// Item потерян</span></pre>
+        <div class="code-label" style="margin-top:8px"><i></i>выход: sendPayload.Rq.schema.json</div>
+        <pre>"priority": { "type": "integer", "enum": [1, 2, 3] }
+"items":    { "type": "array", "items": { "$ref": "#/$defs/Item" } }</pre>
+      </div>
+    </div>
+    <div class="note"><b>Разница</b> — на одном и том же входе. JSON Schema сохраняет всё. DTO
+      теряет <code>enum</code> и тип элемента массива. Слайды 9–10 объясняют, почему.</div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-accent="core">
+  <div class="s-head"><div class="kicker">Парсинг YAML · 1/2</div><h2>Зачем <code>RepresentationModel</code>, а не десериализация в классы</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div>
+        <p><code>YamlStream.Load</code> читает документ в дерево узлов, без знания о схеме OpenAPI:</p>
+        <ul class="bul tight">
+          <li>Нужны все ключевые слова схемы, включая неизвестные <code>x-*</code> и будущие поля. Типизированная модель OpenAPI их отбрасывает.</li>
+          <li>Важен <b>стиль скаляра</b>: <code>series: '4510'</code> и <code>series: 4510</code> — разные вещи для <code>minLength</code> и <code>pattern</code>.</li>
+          <li>JSON разбирается тем же кодом: JSON — подмножество YAML.</li>
+        </ul>
+        <div class="note small"><b>Ограничение:</b> обрабатывается только первый документ (<code>Documents[0]</code>).
+          Multi-document YAML с <code>---</code> не поддерживается.</div>
+      </div>
+      <div>
+        <div class="code-label"><i></i>YamlDocumentParser.ConvertScalar</div>
+        <pre><span class="kw">if</span> (scalar.Style <span class="kw">is</span> SingleQuoted <span class="kw">or</span> DoubleQuoted)
+    <span class="kw">return</span> value;          <span class="cm">// всегда строка</span>
+<span class="cm">// plain: null | ~ | "" → null
+//        true/false (регистр) → bool
+//        целое → int, затем long
+//        дробное → double
+//        иначе → строка</span></pre>
+        <table class="tbl-dense" style="margin-top:8px">
+          <tr><th>В YAML</th><th>Получаем</th></tr>
+          <tr><td><code>'4510'</code></td><td>строка <code>"4510"</code></td></tr>
+          <tr><td><code>4510</code></td><td>int</td></tr>
+          <tr><td><code>1.10</code></td><td>double <code>1.1</code> ⚠</td></tr>
+          <tr><td><code>3.0.3</code></td><td>строка (два «точечных» числа)</td></tr>
+          <tr><td><code>yes</code></td><td>строка (YAML 1.1 сказал бы bool)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-accent="core">
+  <div class="s-head"><div class="kicker">Парсинг YAML · 2/2</div><h2>Почему тип скаляра важен для валидации</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div class="card"><h4>Правило идёт за строкой</h4>
+        <p><code>minLength</code>, <code>pattern</code>, <code>format</code> применяются к строкам. Если серия паспорта
+        распозналась как число, правило молча пропадёт или станет неверным. Поэтому кавычки в YAML — это данные,
+        а не оформление.</p></div>
+      <div class="card"><h4>Что это значит для автора спецификации</h4>
+        <p>Пишите <code>version: '1.10'</code>, а не <code>version: 1.10</code>. Версии, коды и серии — всегда в кавычках.</p></div>
+    </div>
+    <div class="note blue small" style="margin-top:6px"><b>Проверка:</b> тесты <code>Core.Tests</code> покрывают quoted-скаляры
+      и plain-числа. Тип скаляра проверяется на уровне дерева, а не конечного C#-типа.</div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-accent="core">
+  <div class="s-head"><div class="kicker">$ref</div><h2>Четыре вида ссылок и как они разрешаются</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2u">
       <div>
         <table>
-          <tr><th>YAML / JSON</th><th>C# в дереве</th></tr>
-          <tr><td>mapping <code>{...}</code></td><td><code>Dictionary&lt;string, object?&gt;</code></td></tr>
-          <tr><td>sequence <code>[...]</code></td><td><code>List&lt;object?&gt;</code></td></tr>
-          <tr><td>строка</td><td><code>string</code></td></tr>
-          <tr><td>целое</td><td><code>int</code> / <code>long</code></td></tr>
-          <tr><td>дробное</td><td><code>double</code></td></tr>
-          <tr><td>логическое</td><td><code>bool</code></td></tr>
-          <tr><td><code>null</code> / <code>~</code></td><td><code>null</code></td></tr>
+          <tr><th>Пример</th><th>Вид</th><th>Что происходит</th></tr>
+          <tr><td><code>#/components/schemas/Foo</code></td><td>Local</td><td>указатель внутри того же файла</td></tr>
+          <tr><td><code>./common/money.yaml#/Money</code></td><td>RelativeFile</td><td>путь от каталога текущего файла</td></tr>
+          <tr><td><code>/abs/path/x.yaml</code>, <code>C:\x.yaml</code></td><td>AbsoluteFile</td><td>путь как есть</td></tr>
+          <tr><td><code>https://…/x.yaml</code></td><td>Remote</td><td class="n">классифицируется, загрузчика нет — ошибка</td></tr>
         </table>
-        <div class="note blue small" style="margin-top:10px">Ровно этот граф принимают
-          <code>JsonPointerResolver</code>, <code>RefResolver</code> и <code>JsonSchemaGenerator</code>.
-          Один формат — три потребителя.</div>
+        <p class="small muted" style="margin-top:10px">Порядок проверки в <code>RefParser.Parse</code>:
+          <code>#</code> → <code>http(s)://</code> → абсолютный путь → всё остальное как относительный путь.</p>
       </div>
       <div>
-        <div class="code-label"><i></i>что получается из фрагмента</div>
-        <pre>properties:
-  series:
-    type: string
-    minLength: 4
-    pattern: '^\d{4}$'
-  documentType:
-    $ref: '#/components/schemas/DocumentType'</pre>
-        <div class="code-label" style="margin-top:10px"><i></i>дерево</div>
-        <pre>{
-  "properties": {
-    "series": {
-      "type": "string",
-      "minLength": 4L,
-      "pattern": "^\\d{4}$"
-    },
-    "documentType": {
-      "$ref": "#/components/schemas/DocumentType"
-    }
-  }
-}</pre>
-      </div>
-    </div>
-    <div class="note small">Почему не <code>Microsoft.OpenApi.Models</code>: библиотека навязывает
-      свою объектную модель, теряет vendor-расширения и требует отдельного пути для JSON Schema.
-      Здесь же дерево — «сырые данные», и каждый потребитель берёт нужное сам.</div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 10 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">$ref · 1/3</div><h2>Четыре вида ссылок и один разделитель — <code>#</code></h2><div class="num"></div></div>
-  <div class="s-body">
-    <table>
-      <tr><th style="width:300px">Строка <code>$ref</code></th><th style="width:130px">RefKind</th><th>Целевой документ</th><th style="width:240px">JsonPointer</th></tr>
-      <tr><td><code>#/components/schemas/Foo</code></td><td><code>Local</code></td>
-        <td>текущий документ</td><td><code>/components/schemas/Foo</code></td></tr>
-      <tr><td><code>./common/money.yaml#/Money</code></td><td><code>RelativeFile</code></td>
-        <td><code>Path.GetFullPath(dir(current) + source)</code></td><td><code>/Money</code></td></tr>
-      <tr><td><code>C:/specs/common.yaml#/Money</code></td><td><code>AbsoluteFile</code></td>
-        <td>как есть</td><td><code>/Money</code></td></tr>
-      <tr><td><code>https://host/spec.yaml#/Foo</code></td><td><code>Remote</code></td>
-        <td>как есть (URI)</td><td><code>/Foo</code></td></tr>
-    </table>
-
-    <div class="cols c2" style="margin-top:14px">
-      <div>
-        <div class="code-label"><i></i>RefParser.Parse — порядок проверок важен</div>
-        <pre><span class="kw">if</span> (refString.StartsWith(<span class="st">'#'</span>))            → Local
-<span class="kw">if</span> (starts with http:// | https://)            → Remote
-<span class="kw">if</span> (IsAbsolutePath)   <span class="cm">// "/abs" или "C:/"</span>   → AbsoluteFile
-<span class="kw">else</span>                                          → RelativeFile
-
-<span class="cm">// SplitFileAndPointer: '#' — разделитель</span>
-<span class="cm">// "./x.yaml#/Money" → Source="./x.yaml", Pointer="/Money"</span>
-<span class="cm">// "./x.yaml"        → Source="./x.yaml", Pointer=null</span></pre>
-      </div>
-      <div>
-        <div class="code-label"><i></i>RefResolver.GetTargetDocumentKey</div>
-        <pre>Local        → currentDocumentKey
-AbsoluteFile → source
-Remote       → source
-RelativeFile → Path.GetFullPath(
-                 Path.Combine(dir(current), source))</pre>
-        <div class="note"><b>Честно про HTTP:</b> <code>Remote</code> распознаётся и нормализуется,
-          но реализован только <code>LocalFileLoader</code>. Для <code>https://…</code> нужен свой
-          <code>IDocumentLoader</code> (интерфейс уже есть, это ~20 строк).
-          Сейчас такой <code>$ref</code> упадёт с «file not found».</div>
+        <div class="code-label"><i></i>JSON Pointer (RFC 6901)</div>
+        <pre><span class="cm">// «#/components/schemas/a~1b» → сегменты:
+//   components, schemas, "a/b"
+// ~1 заменяется на /, затем ~0 на ~</span>
+<span class="kw">return</span> pointer.Split(<span class="st">'/'</span>).Last()
+    .Replace(<span class="st">"~1"</span>, <span class="st">"/"</span>).Replace(<span class="st">"~0"</span>, <span class="st">"~"</span>);</pre>
+        <div class="note small">Документы, на которые ссылаются, кешируются по ключу, поэтому один внешний файл
+          читается и парсится один раз на запуск.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 11 -->
+<!-- 9 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">$ref · 2/3</div><h2>Загрузка и кеш: фабрика вызывается ровно один раз</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <ul class="bul tight">
-          <li><code>IDocumentLoader</code> — контракт «дай текст по ключу». Реализация
-            <code>LocalFileLoader</code>: проверка «это каталог?», «файла нет?», чтение UTF-8 с
-            <code>CancellationToken</code>.</li>
-          <li><code>CachedDocument(rawContent, format)</code> — сырой текст + подсказка формата
-            (по расширению). Парсинг выполняется при каждом использовании, кешируется только текст.</li>
-          <li><code>DocumentCache</code> — <code>ConcurrentDictionary</code> плюс
-            <code>SemaphoreSlim</code> на ключ: быстрый путь без блокировки, затем double-check
-            после захвата. Две параллельные ветки не скачают файл дважды.</li>
-          <li>Нормализация ключа: URI → <code>new Uri(x).ToString().TrimEnd('/')</code>;
-            пути — как есть. Сравнение: <code>OrdinalIgnoreCase</code> на Windows,
-            <code>Ordinal</code> на Linux (регистр в путях значим).</li>
-        </ul>
-      </div>
-      <div>
-        <div class="code-label"><i></i>DocumentCache.GetOrAddAsync</div>
-        <pre><span class="kw">if</span> (_store.TryGetValue(key, <span class="kw">out var</span> existing))
-    <span class="kw">return</span> existing;                       <span class="cm">// быстро</span>
-
-<span class="kw">var</span> sem = _locks.GetOrAdd(key, _ =&gt; <span class="kw">new</span> <span class="ty">SemaphoreSlim</span>(<span class="nm">1</span>, <span class="nm">1</span>));
-<span class="kw">await</span> sem.WaitAsync(ct);
-<span class="kw">try</span>
-{
-    <span class="kw">if</span> (_store.TryGetValue(key, <span class="kw">out</span> existing))
-        <span class="kw">return</span> existing;                   <span class="cm">// double-check</span>
-
-    <span class="kw">var</span> doc = <span class="kw">await</span> factory(key);      <span class="cm">// загрузка+парсинг</span>
-    _store[key] = doc;
-    <span class="kw">return</span> doc;
-}
-<span class="kw">finally</span> { sem.Release(); }</pre>
-        <div class="note blue small">Один и тот же экземпляр кеша живёт на весь запуск
-          <code>generate</code>: <code>money.yaml</code>, на который ссылаются 5 схем,
-          читается и парсится один раз.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 12 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">$ref · 3/3</div><h2>JSON Pointer по RFC 6901 — с человеческими ошибками</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">IR · построение</div><h2>Как <code>IRBuilder</code> строит граф <code>SchemaNode</code></h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2">
       <div>
-        <ul class="bul tight">
-          <li><code>"/components/schemas/Foo"</code> → токены <code>["components","schemas","Foo"]</code>;
-            ведущий <code>/</code> отрезается.</li>
-          <li>В объекте — поиск по ключу, в массиве — по индексу
-            (<code>int.TryParse</code>, проверка границ).</li>
-          <li>Скаляр или <code>null</code> дальше не разворачиваются — это ошибка, а не «пусто».</li>
-          <li>Escape: <code>~1 → /</code>, затем <code>~0 → ~</code>.
-            <b>Порядок обязателен</b>: иначе <code>~01</code> превратится в <code>~/</code>.</li>
-          <li>Пустая строка и <code>"/"</code> → корень документа (ссылка на весь файл).</li>
-        </ul>
-        <div class="note green small">В сообщении об ошибке печатаются доступные ключи —
-          отладка спеки занимает секунды: <code>Key 'PersnInfo' not found. Available keys: [PersonInfo, …]</code></div>
-      </div>
-      <div>
-        <div class="code-label"><i></i>JsonPointerResolver.Navigate</div>
-        <pre><span class="kw">foreach</span> (<span class="kw">var</span> rawToken <span class="kw">in</span> tokens)
-{
-    <span class="kw">var</span> token = Unescape(rawToken);   <span class="cm">// ~1, затем ~0</span>
-
-    <span class="kw">switch</span> (current)
-    {
-        <span class="kw">case</span> <span class="ty">Dictionary</span>&lt;<span class="ty">string</span>, <span class="ty">object</span>?&gt; dict:
-            <span class="kw">if</span> (!dict.TryGetValue(token, <span class="kw">out</span> current))
-                <span class="kw">throw new</span> <span class="ty">JsonPointerException</span>(…);
-            <span class="kw">break</span>;
-
-        <span class="kw">case</span> <span class="ty">List</span>&lt;<span class="ty">object</span>?&gt; list:
-            <span class="cm">// int.TryParse + проверка 0 &lt;= index &lt; Count</span>
-            current = list[index]; <span class="kw">break</span>;
-
-        <span class="kw">case null</span>: <span class="kw">throw</span> … <span class="cm">// «нельзя идти в null»</span>
-        <span class="kw">default</span>:  <span class="kw">throw</span> … <span class="cm">// «скаляр — не контейнер»</span>
-    }
-}</pre>
-        <div class="note small">Тот же резолвер используется и в <code>RefResolver</code>,
-          и в <code>JsonSchemaGenerator</code> — поведение одинаковое.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 13 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Циклы</div><h2>Рекурсия в спецификации — две разные стратегии</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <h3><span class="tag">IR</span> детектор + ленивая ссылка</h3>
-        <div class="code-label"><i></i>CycleDetector.cs</div>
-        <pre><span class="kw">public void</span> Enter(<span class="ty">string</span> key)
-{
-    <span class="kw">if</span> (_visiting.Contains(key))
-    {
-        <span class="kw">var</span> cyclePath = <span class="kw">new</span> <span class="ty">List</span>&lt;<span class="ty">string</span>&gt;(_stack) { key };
-        <span class="kw">throw new</span> <span class="ty">CyclicReferenceException</span>(key, cyclePath);
-    }
-    _stack.Add(key); _visiting.Add(key);
-}</pre>
-        <ul class="bul tight small" style="margin-top:8px">
-          <li><code>List</code> хранит путь от корня, <code>HashSet</code> даёт O(1) проверку.</li>
-          <li><code>Leave</code> строго LIFO — иначе <code>InvalidOperationException</code>.</li>
-          <li><code>CycleDetectorScope</code> — RAII: <code>using (detector.Scope(ref))</code>
-            автоматически вызывает <code>Leave</code> при выходе (в т.ч. при исключении).</li>
-          <li>В <code>IRBuilder</code> исключение перехватывается и превращается в узел
-            <code>{ OriginalRef, IsLazyRef = true }</code>.</li>
-        </ul>
-      </div>
-      <div>
-        <h3><span class="tag">JSON Schema</span> очередь вместо рекурсии</h3>
-        <div class="code-label"><i></i>RegisterDefAsync — цикл безопасен по построению</div>
-        <pre><span class="kw">if</span> (!ctx.DefNames.TryGetValue(refKey, <span class="kw">out var</span> defName))
-{
-    <span class="kw">var</span> target = Resolve(tree, pointer);
-    defName = ctx.ReserveDefName(BuildDefBaseName(pointer, docKey));
-    ctx.DefNames[refKey] = defName;              <span class="cm">// регистрируем ДО конвертации</span>
-    ctx.Pending.Enqueue(<span class="kw">new</span> PendingDef(defName, target, docKey));
-}
-<span class="kw">return</span> <span class="st">$"#/$defs/{defName}"</span>;   <span class="cm">// ссылка возвращается сразу</span></pre>
-        <div class="note green small">Ссылка на саму себя — это просто строка
-          <code>#/$defs/Comment</code>. Тело <code>Comment</code> конвертируется позже,
-          когда очередь дойдёт до него. Никакой бесконечной рекурсии.</div>
-        <div class="note"><b>Что важно знать про IR-ветку:</b> ленивый узел не получает имя,
-          поэтому рекурсивное свойство сегодня генерируется как <code>List&lt;object&gt;</code>
-          (см. слайд 30). Для JSON Schema та же схема работает корректно — это лучший путь
-          для рекурсивных структур.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 14 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">IR</div><h2>SchemaNode — единственный контракт между парсингом и генерацией</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <div class="code-label"><i></i>Core/Models/SchemaNode.cs (сокращённо)</div>
-        <pre><span class="kw">public sealed record</span> <span class="ty">SchemaNode</span>
-{
-    <span class="kw">public string</span>? Name { <span class="kw">get</span>; <span class="kw">set</span>; }        <span class="cm">// ключ components/schemas</span>
-    <span class="kw">public string</span>? OriginalRef { <span class="kw">get</span>; <span class="kw">set</span>; }
-    <span class="kw">public string</span>? Type { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public string</span>? Description { <span class="kw">get</span>; <span class="kw">init</span>; }
-
-    <span class="kw">public</span> <span class="ty">IReadOnlyList</span>&lt;<span class="ty">PropertyNode</span>&gt; Properties { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public</span> <span class="ty">SchemaNode</span>? Items { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public</span> <span class="ty">IReadOnlyList</span>&lt;<span class="ty">string</span>&gt; EnumValues { <span class="kw">get</span>; <span class="kw">init</span>; }
-
-    <span class="kw">public</span> <span class="ty">IReadOnlyList</span>&lt;<span class="ty">SchemaNode</span>&gt; AllOf / OneOf / AnyOf { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public string</span>? DiscriminatorPropertyName { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public</span> <span class="ty">IReadOnlyDictionary</span>&lt;<span class="ty">string</span>, <span class="ty">string</span>&gt; DiscriminatorMapping { <span class="kw">get</span>; <span class="kw">init</span>; }
-
-    <span class="kw">public</span> <span class="ty">ValidationRules</span> Rules { <span class="kw">get</span>; <span class="kw">init</span>; }
-    <span class="kw">public bool</span> IsLazyRef { <span class="kw">get</span>; <span class="kw">set</span>; }
-
-    <span class="cm">// вычисляемые</span>
-    <span class="kw">public bool</span> IsObject  =&gt; Type == <span class="st">"object"</span> || Properties.Count &gt; <span class="nm">0</span>;
-    <span class="kw">public bool</span> IsArray   =&gt; Type == <span class="st">"array"</span>;
-    <span class="kw">public bool</span> IsEnum    =&gt; EnumValues.Count &gt; <span class="nm">0</span>;
-    <span class="kw">public bool</span> IsPrimitive =&gt; Type <span class="kw">is</span> <span class="st">"string"</span> <span class="kw">or</span> <span class="st">"integer"</span> …;
-}</pre>
-      </div>
-      <div>
-        <div class="code-label"><i></i>PropertyNode + ValidationRules</div>
-        <pre><span class="kw">class</span> <span class="ty">PropertyNode</span> {
-    <span class="kw">string</span> Name;            <span class="cm">// как в YAML: lastName</span>
-    <span class="ty">SchemaNode</span> Schema;      <span class="cm">// тип/вложенная схема</span>
-    <span class="kw">bool</span> IsRequired;        <span class="cm">// из required родителя</span>
-    <span class="kw">string</span>? Description;
-}
-
-<span class="kw">class</span> <span class="ty">ValidationRules</span> {
-    <span class="kw">int</span>? MinLength, MaxLength, MinItems, MaxItems;
-    <span class="kw">string</span>? Pattern, Format;
-    <span class="kw">double</span>? Minimum, Maximum;
-    <span class="kw">bool</span> ExclusiveMinimum, ExclusiveMaximum,
-         UniqueItems, Required, Nullable;
-}</pre>
-        <div class="note blue small"><b><code>record</code> + <code>with</code></b> — узлы
-          собираются по шагам: сначала <code>Type/Description/Rules</code>, потом
-          <code>with { EnumValues = … }</code>, потом <code>with { Properties = … }</code>.
-          Иммутабельность даёт бесплатный кеш и безопасную параллельность.</div>
-        <div class="note small"><b>Что IR сознательно не хранит:</b> <code>additionalProperties</code>,
-          <code>readOnly</code>, <code>examples</code>, <code>patternProperties</code>.
-          Поэтому JSON Schema идёт мимо IR.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 15 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">IRBuilder</div><h2>Как строится граф: 8 шагов на каждую схему</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <ol class="num-list sm">
-          <li><b>Взять <code>components/schemas</code></b> — ключи становятся именами схем.</li>
-          <li><b>Кеш <code>_builtNodes</code></b> — повторный вход возвращает готовый узел
-            (защита от повторной сборки).</li>
-          <li><b>Войти в <code>CycleDetector.Scope(schemaName)</code></b> — RAII-стек обхода.</li>
-          <li><b>Создать узел</b>: <code>Name</code>, <code>Type</code>, <code>Description</code>,
-            <code>Rules</code> (из <code>ExtractValidationRules</code>).</li>
-          <li><b>Enum?</b> — есть <code>enum</code> → заполнить <code>EnumValues</code> и
-            <b>выйти</b>: у enum нет ни свойств, ни вложенности.</li>
-          <li><b>Array?</b> — рекурсивно построить <code>Items</code> из <code>items</code>.</li>
-          <li><b>Object?</b> — <code>properties</code> → <code>PropertyNode</code>
-            + <code>IsRequired</code> из <code>required</code> родителя.</li>
-          <li><b>Полиморфизм</b> — <code>allOf</code>, <code>oneOf</code> (+ <code>discriminator</code>
-            и <code>mapping</code>), <code>anyOf</code>; сохранить узел в кеш.</li>
+        <ol class="num-list">
+          <li><b>Берёт</b> <code>components/schemas</code> — каждая схема становится узлом с именем.</li>
+          <li><b>Тип, описание, правила</b> — <code>type</code>, <code>description</code>, <code>minLength</code>, <code>pattern</code>, <code>format</code>, <code>nullable</code> и др.</li>
+          <li><b>enum</b> — если есть, узел получает <code>EnumValues</code> и дальше не обрабатывается.</li>
+          <li><b>array</b> — <code>items</code> разбирается через inline-путь (один уровень).</li>
+          <li><b>object</b> — <code>properties</code> и <code>required</code> в <code>PropertyNode</code>.</li>
+          <li><b>allOf / oneOf / anyOf</b> — списки подсхем, для <code>oneOf</code> — <code>discriminator</code>.</li>
         </ol>
       </div>
       <div>
-        <div class="code-label"><i></i>BuildSchemaNodeAsync — скелет</div>
+        <div class="code-label"><i></i>Цикл: IRBuilder ↔ RefResolver</div>
         <pre><span class="kw">using</span> (_cycleDetector.Scope(schemaName))
 {
-    <span class="kw">var</span> node = <span class="kw">new</span> <span class="ty">SchemaNode</span> {
-        Name = schemaName,
-        Type = ExtractType(schemaDict),
-        Description = ExtractDescription(schemaDict),
-        Rules = ExtractValidationRules(schemaDict),
-    };
-
-    <span class="kw">if</span> (ExtractEnum(schemaDict) <span class="kw">is</span> { Count: &gt; <span class="nm">0</span> } values)
-        <span class="kw">return</span> node <span class="kw">with</span> { EnumValues = values };
-
-    <span class="kw">if</span> (node.Type == <span class="st">"array"</span>)
-        node = node <span class="kw">with</span> { Items = <span class="kw">await</span> … };
-
-    node = node <span class="kw">with</span> { Properties = <span class="kw">await</span> ExtractProperties(…) };
-    node = node <span class="kw">with</span> { AllOf = <span class="kw">await</span> BuildSchemaList(…) };
-    <span class="cm">// + OneOf/Discriminator, AnyOf</span>
-    _builtNodes[schemaName] = node;
-    <span class="kw">return</span> node;
-}</pre>
-        <div class="note"><b>Где именно теряется информация:</b> <code>BuildSchemaNodeFromInlineAsync</code>
-          (для свойств и элементов <code>allOf</code>) извлекает только
-          <code>Type/Description/Rules/Enum</code> и <b>не рекурсирует</b> в <code>properties</code>
-          и <code>items</code>. Поэтому inline-объект и inline-массив в DTO превращаются в
-          <code>object</code> / <code>List&lt;object&gt;</code>. Полный список — слайд 31.</div>
+    <span class="cm">// строим узел</span>
+}
+<span class="kw">catch</span> (CyclicReferenceException)
+    → <span class="kw">new</span> SchemaNode { IsLazyRef = <span class="kw">true</span> }</pre>
+        <div class="note red small"><b>Слабое место:</b> <code>BuildSchemaNodeFromInlineAsync</code> не заходит в
+          <code>properties</code> и <code>items</code> inline-схем. Поэтому массив-свойство получает
+          <code>Items = null</code>, а объект-свойство остаётся безымянным <code>object</code>.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 16 -->
+<!-- 10 -->
 <section class="slide" data-accent="dto">
-  <div class="s-head"><div class="kicker">DTO · 1/3</div><h2>TypeMapper: <code>type</code> + <code>format</code> → тип C#</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">DTO · генератор</div><h2>Как из узла IR получается класс</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2">
       <div>
-        <table>
+        <h3>TypeMapper: <code>type</code> + <code>format</code> → C#</h3>
+        <table class="tbl-dense">
           <tr><th>OpenAPI</th><th>C#</th></tr>
           <tr><td><code>string</code></td><td><code>string</code></td></tr>
-          <tr><td><code>string</code> + <code>date</code></td><td><code>DateOnly</code></td></tr>
-          <tr><td><code>string</code> + <code>date-time</code></td><td><code>DateTime</code></td></tr>
-          <tr><td><code>string</code> + <code>uuid</code></td><td><code>Guid</code></td></tr>
-          <tr><td><code>string</code> + <code>byte</code></td><td><code>byte[]</code></td></tr>
-          <tr><td><code>integer</code> / <code>int32</code></td><td><code>int</code></td></tr>
-          <tr><td><code>integer</code> + <code>int64</code></td><td><code>long</code></td></tr>
-          <tr><td><code>number</code> / <code>double</code></td><td><code>double</code></td></tr>
-          <tr><td><code>number</code> + <code>float</code></td><td><code>float</code></td></tr>
-          <tr><td><code>boolean</code></td><td><code>bool</code></td></tr>
-          <tr><td><code>array</code></td><td><code>List&lt;TItems&gt;</code></td></tr>
-          <tr><td><code>object</code> с именем</td><td>имя схемы</td></tr>
-          <tr><td><code>object</code> без имени</td><td><code>object</code></td></tr>
-          <tr><td>enum с именем</td><td>имя enum'а</td></tr>
+          <tr><td><code>string, date</code></td><td><code>DateOnly</code></td></tr>
+          <tr><td><code>string, date-time</code></td><td><code>DateTime</code></td></tr>
+          <tr><td><code>string, uuid</code></td><td><code>Guid</code></td></tr>
+          <tr><td><code>integer</code> / <code>int64</code></td><td><code>int</code> / <code>long</code></td></tr>
+          <tr><td><code>number</code> / <code>float</code></td><td><code>double</code> / <code>float</code></td></tr>
+          <tr><td><code>array</code></td><td><code>List&lt;T&gt;</code>, T из <code>items</code></td></tr>
+          <tr><td>именованный object / enum</td><td>имя класса / enum</td></tr>
         </table>
       </div>
       <div>
-        <div class="code-label"><i></i>TypeMapper — nullable поверх базового типа</div>
-        <pre><span class="kw">public string</span> Map(<span class="ty">SchemaNode</span> node, <span class="kw">bool</span> applyNullable = <span class="kw">false</span>)
-{
-    <span class="kw">var</span> baseType = MapCore(node);
-
-    <span class="kw">if</span> (applyNullable &amp;&amp; node.Rules.Nullable
-        &amp;&amp; !baseType.EndsWith(<span class="st">'?'</span>)
-        &amp;&amp; !baseType.StartsWith(<span class="st">"List&lt;"</span>))
-        <span class="kw">return</span> baseType + <span class="st">"?"</span>;
-
-    <span class="kw">return</span> baseType;
-}</pre>
-        <div class="note blue small"><b><code>List&lt;</code> исключён намеренно:</b>
-          <code>List&lt;T&gt;?</code> и <code>List&lt;T&gt;</code> в DTO ведут себя почти одинаково,
-          а nullable-аннотация на коллекции только шумит.</div>
-        <div class="note small"><b>Несколько источников «?»:</b> <code>nullable: true</code> в схеме
-          <i>и</i> отсутствие в <code>required</code> (см. <code>DtoGenerator.AppendProperty</code>).
-          Второе правило сильнее: опциональное поле всегда nullable.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 17 -->
-<section class="slide" data-accent="dto">
-  <div class="s-head"><div class="kicker">DTO · 2/3</div><h2>Как собирается класс: свойства, enum'ы, наследование</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <div class="code-label"><i></i>AppendProperty — одно свойство</div>
-        <pre><span class="kw">var</span> csType = _typeMapper.Map(prop.Schema, applyNullable: <span class="kw">true</span>);
-<span class="kw">var</span> propName = NameHelper.ToPascalCase(prop.Name);   <span class="cm">// firstName → FirstName</span>
-
-<span class="cm">// опциональное — добавляем "?"</span>
-<span class="kw">if</span> (!prop.IsRequired &amp;&amp; !csType.EndsWith(<span class="st">'?'</span>)
-    &amp;&amp; !csType.StartsWith(<span class="st">"List&lt;"</span>))
-    csType += <span class="st">"?"</span>;
-
-<span class="cm">// XML-doc из description</span>
-<span class="cm">// [Mask(...)] — если поле есть в masking-конфиге</span>
-sb.AppendLine(<span class="st">$"    [JsonPropertyName(\"{prop.Name}\")]"</span>);
-sb.AppendLine(<span class="st">$"    public {csType} {propName} {{ get; set; }}"</span>);</pre>
-        <div class="code-label" style="margin-top:10px"><i></i>enum</div>
-        <pre><span class="kw">foreach</span> (<span class="kw">var</span> value <span class="kw">in</span> schema.EnumValues)
-{
-    <span class="kw">var</span> member = NameHelper.ToPascalCase(value.ToLowerInvariant());
-    sb.AppendLine(<span class="st">$"    [EnumMember(Value = \"{value}\")]"</span>);
-    sb.AppendLine(<span class="st">$"    {member},"</span>);
-}</pre>
-      </div>
-      <div>
+        <h3>DtoGenerator: что пишет в файл</h3>
         <ul class="bul tight">
-          <li><b>Имена</b>: <code>NameHelper.ToPascalCase</code> бьёт по <code>_</code> и <code>-</code>,
-            капитализирует части. <code>document_type → DocumentType</code>.</li>
-          <li><b>Prefix/Suffix</b>: <code>BuildClassName(name, prefix, suffix)</code> применяется
-            только к DTO. <span class="w">Валидаторы и <code>SetValidator</code> берут «сырое»
-            имя схемы</span> — с <code>--class-suffix</code> связка ломается.</li>
-          <li><b><code>partial</code></b> включается автоматически, когда нужен
-            <code>ToMaskedJson()</code>: <code>NeedsPartialDto =&gt; ShouldGenerateMasking</code>.</li>
-          <li><b><code>allOf</code> → наследование</b>: первая именованная часть <i>без собственных
-            свойств</i> становится базовым классом, остальные свойства добавляются в тело.</li>
-          <li><b>Генерируются</b> только схемы с <code>IsEnum</code> или <code>IsObject</code>
-            (<code>type: object</code> либо есть <code>properties</code>).</li>
+          <li><code>[JsonPropertyName]</code> хранит имя из спецификации, а C#-имя — PascalCase.</li>
+          <li>Необязательное свойство (не в <code>required</code>) получает <code>?</code>, если тип не <code>List&lt;&gt;</code>.</li>
+          <li><code>description</code> становится XML-doc.</li>
+          <li><code>allOf</code> с именованной базой без своих свойств → наследование; остальные части добавляют свойства.</li>
+          <li>Enum генерируется отдельным файлом с <code>[EnumMember(Value = …)]</code>.</li>
         </ul>
-        <div class="note small"><b>Про <code>[EnumMember]</code>:</b> атрибут фиксирует исходное
-          значение (<code>NOT_SPECIFIED</code>), но <code>System.Text.Json</code> его не читает —
-          для сериализации строкой нужен <code>JsonStringEnumConverter</code> или свой конвертер.
-          Сейчас enum-поля в DTO почти всегда <code>string</code> (см. слайд 31), так что
-          вопрос отложен, но при «оживлении» enum'ов его придётся решить.</div>
+        <div class="note small">Чтобы inline-enum стал отдельным типом, его нужно вынести в <code>components/schemas</code>.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 18 -->
-<section class="slide" data-accent="dto">
-  <div class="s-head"><div class="kicker">DTO · 3/3</div><h2>Пример: YAML → класс (реальный вывод)</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <div class="code-label"><i></i>samples/openapi_example.yaml</div>
-        <pre>PassportInfo:
-  type: object
-  description: Паспорт гражданина Российской Федерации
-  required: [series, number, issuedBy, issueDate, departmentCode]
-  properties:
-    series:
-      type: string
-      description: Серия паспорта (4 цифры)
-      minLength: 4
-      maxLength: 4
-      pattern: '^\d{4}$'
-    expiryDate:
-      type: string
-      format: date
-      nullable: true
-      description: Дата окончания срока действия…</pre>
-        <div class="note blue small">Три источника информации для одного файла:
-          <code>type/format</code> → тип C#, <code>description</code> → XML-doc,
-          <code>required</code> → наличие <code>?</code>.</div>
-      </div>
-      <div>
-        <div class="code-label"><i></i>Generated/Dto/PassportInfo.cs</div>
-        <pre><span class="kw">using</span> System.Text.Json.Serialization;
-
-<span class="kw">namespace</span> MyTestApp.Dto;
-
-<span class="cm">/// &lt;summary&gt;</span>
-<span class="cm">/// Паспорт гражданина Российской Федерации</span>
-<span class="cm">/// &lt;/summary&gt;</span>
-<span class="kw">public class</span> <span class="ty">PassportInfo</span>
-{
-    <span class="cm">/// &lt;summary&gt;</span>
-    <span class="cm">/// Серия паспорта (4 цифры)</span>
-    <span class="cm">/// &lt;/summary&gt;</span>
-    [<span class="at">JsonPropertyName</span>(<span class="st">"series"</span>)]
-    <span class="kw">public string</span> Series { <span class="kw">get</span>; <span class="kw">set</span>; }
-
-    <span class="cm">// … number, issuedBy, departmentCode</span>
-
-    [<span class="at">JsonPropertyName</span>(<span class="st">"expiryDate"</span>)]
-    <span class="kw">public</span> <span class="ty">DateOnly</span>? ExpiryDate { <span class="kw">get</span>; <span class="kw">set</span>; }
-}</pre>
-        <div class="note small"><b>Обратите внимание:</b> <code>issueDate</code> обязателен →
-          <code>DateOnly</code> без <code>?</code>; <code>expiryDate</code> не в
-          <code>required</code> + <code>nullable: true</code> → <code>DateOnly?</code>.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 19 -->
+<!-- 11 -->
 <section class="slide" data-accent="val">
-  <div class="s-head"><div class="kicker">FluentValidation · 1/3</div><h2>RuleMapper: ключевое слово схемы → вызов FluentValidation</h2><div class="num"></div></div>
-  <div class="s-body">
-    <table>
-      <tr><th style="width:270px">В схеме</th><th style="width:330px">Генерируется</th><th>Условие / нюанс</th></tr>
-      <tr><td><code>required</code></td><td><code>.NotEmpty()</code> / <code>.NotNull()</code></td>
-        <td><code>NotNull</code> — для <code>object</code>/<code>array</code>/именованных типов, иначе <code>NotEmpty</code></td></tr>
-      <tr><td><code>enum</code></td><td><code>.IsInEnum()</code></td><td>и на этом правила для свойства заканчиваются</td></tr>
-      <tr><td><code>minLength</code></td><td><code>.MinimumLength(n)</code></td><td>+ <code>.WithMessage(description)</code>, если описание есть</td></tr>
-      <tr><td><code>maxLength</code></td><td><code>.MaximumLength(n)</code></td><td></td></tr>
-      <tr><td><code>pattern</code></td><td><code>.Matches(@"…")</code></td><td>кавычки экранируются как <code>""</code> (verbatim-строка)</td></tr>
-      <tr><td><code>format: email</code></td><td><code>.EmailAddress()</code></td><td></td></tr>
-      <tr><td><code>format: uuid</code></td><td><code>.Must(v =&gt; v == null || Guid.TryParse(v, out _))</code></td>
-        <td>пропускает <code>null</code> — обязательность проверяет <code>NotEmpty</code></td></tr>
-      <tr><td><code>format: date</code></td><td><code>.Must(… DateOnly.TryParse …)</code></td><td>сообщение: <i>expected YYYY-MM-DD</i></td></tr>
-      <tr><td><code>format: date-time</code></td><td><code>.Must(… DateTime.TryParse …)</code></td><td></td></tr>
-      <tr><td><code>minimum</code></td><td><code>.GreaterThanOrEqualTo(n)</code></td><td><code>exclusiveMinimum: true</code> → <code>.GreaterThan(n)</code></td></tr>
-      <tr><td><code>maximum</code></td><td><code>.LessThanOrEqualTo(n)</code></td><td><code>exclusiveMaximum: true</code> → <code>.LessThan(n)</code></td></tr>
-      <tr><td><code>minItems</code> / <code>maxItems</code></td><td><code>.Must(list =&gt; list == null || list.Count &gt;= n)</code></td>
-        <td><code>null</code> не считается нарушением — это работа <code>NotNull</code></td></tr>
-    </table>
-    <div class="cols c3" style="margin-top:12px">
-      <div class="card"><h4>Числа без «.0»</h4><p><code>FormatNumber</code>: целое печатается как
-        <code>3</code>, а не <code>3.0</code>, иначе C# выведет <code>double</code>-перегрузку.</p></div>
-      <div class="card"><h4>Сообщения из спеки</h4><p><code>WithMessage</code> берётся из
-        <code>description</code> поля — текст ошибки сразу на языке контракта.</p></div>
-      <div class="card"><h4>Нет правил — нет строки</h4><p>Если у свойства нет ни примитивных правил,
-        ни вложенного валидатора, <code>RuleFor</code> не генерируется вообще.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 20 -->
-<section class="slide" data-accent="val">
-  <div class="s-head"><div class="kicker">FluentValidation · 2/3</div><h2>Каркас валидатора: цепочка, каскад, условие</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Валидаторы · правила</div><h2><code>RuleMapper</code>: одно свойство → список строк правил</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2u">
       <div>
-        <div class="code-label"><i></i>ValidatorGenerator.AppendPropertyRules</div>
-        <pre><span class="kw">var</span> primitiveRules = _ruleMapper.Map(prop);              <span class="cm">// ["NotEmpty()", "MinimumLength(4)", …]</span>
-<span class="kw">var</span> needsSetValidator = schema.IsObject &amp;&amp; !string.IsNullOrEmpty(schema.Name);
-<span class="kw">var</span> needsWhen = parentSchema.DiscriminatorPropertyName != <span class="kw">null</span> &amp;&amp; …;
-
-<span class="kw">if</span> (!primitiveRules.Any() &amp;&amp; !needsSetValidator) <span class="kw">return</span>;
-
-sb.Append(<span class="st">$"        RuleFor(x =&gt; x.{propName})"</span>);
-
-<span class="kw">foreach</span> (<span class="kw">var</span> rule <span class="kw">in</span> primitiveRules)
-    sb.Append(<span class="st">$"\n            .{rule}"</span>);          <span class="cm">// каждое правило — с новой строки</span>
-
-<span class="kw">if</span> (needsSetValidator)
-    sb.Append(<span class="st">$"\n            .SetValidator(new {schema.Name}Validator())"</span>);
-
-<span class="kw">if</span> (needsWhen)
-    sb.Append(<span class="st">$"\n            .When(x =&gt; x.{disc} == \"{value}\")"</span>);
-
-sb.AppendLine(<span class="st">";"</span>);</pre>
+        <table class="tbl-dense">
+          <tr><th>Условие</th><th>Правило FluentValidation</th></tr>
+          <tr><td>required, object/array или именованный тип</td><td><code>NotNull()</code></td></tr>
+          <tr><td>required, остальное</td><td><code>NotEmpty()</code></td></tr>
+          <tr><td>enum (IR)</td><td><code>IsInEnum()</code> — и больше ничего</td></tr>
+          <tr><td>string: minLength / maxLength / pattern</td><td><code>MinimumLength</code> / <code>MaximumLength</code> / <code>Matches(@"…")</code></td></tr>
+          <tr><td>string: format email</td><td><code>EmailAddress()</code></td></tr>
+          <tr><td>string: format uuid / date / date-time</td><td><code>Must(v =&gt; … TryParse(v, out _))</code></td></tr>
+          <tr><td>number: minimum / maximum (+ exclusive)</td><td><code>GreaterThan…</code> / <code>LessThanOrEqualTo</code></td></tr>
+          <tr><td>array: minItems / maxItems</td><td><code>Must(list =&gt; list.Count …)</code></td></tr>
+          <tr><td>именованный объект</td><td><code>SetValidator(new XValidator())</code></td></tr>
+        </table>
       </div>
       <div>
-        <h3 class="muted">Три решения на каждое свойство</h3>
-        <div class="card"><h4>1. Примитивные правила</h4>
-          <p><code>RuleMapper.Map(prop)</code> — чистый список строк, без знания о классе.
-          Поэтому <code>RuleMapperTests</code> проверяют правила таблицей, без генерации файлов.</p></div>
-        <div class="card"><h4>2. Каскад <code>SetValidator</code></h4>
-          <p>Вложенный объект с именем → <code>new XxxValidator()</code>. FluentValidation сам
-          не заходит внутрь объектов, поэтому без этого правила вложенные поля не проверяются.</p></div>
-        <div class="card"><h4>3. <code>.When</code> по дискриминатору</h4>
-          <p><code>GetDiscriminatorValue</code> ищет значение, чья схема «похожа» на имя свойства:
-            <code>schemaName.Contains(PascalCase(prop))</code> или
-            <code>prop.Contains(discriminatorValue)</code>.</p></div>
-        <div class="note"><b>Честно:</b> это эвристика по именам, а не семантика. Для
-          <code>passport → PassportInfo</code> работает, для произвольных имён — нет.
-          Надёжнее опираться на <code>oneOf</code> + <code>discriminator.mapping</code>
-          в самих схемах вариантов (как в <code>samples/complex</code>).</div>
+        <div class="card"><h4>Почему функция, а не шаблон</h4>
+          <p><code>RuleMapper.Map(prop)</code> возвращает <code>IReadOnlyList&lt;string&gt;</code>. Это чистая функция:
+          таблица вход → выход, её легко тестировать.</p></div>
+        <div class="card"><h4>Описание становится сообщением</h4>
+          <p><code>WithMessage("…")</code> берётся из <code>description</code>. Поэтому переносы строк в описании ломают код
+          (CS1010) — см. слайд 24.</p></div>
+        <div class="note small"><b>Нет правил для:</b> <code>uniqueItems</code>, <code>maxProperties</code>,
+          <code>additionalProperties</code>. Они есть в JSON Schema, но не в валидаторах.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 21 -->
+<!-- 12 -->
 <section class="slide" data-accent="val">
-  <div class="s-head"><div class="kicker">FluentValidation · 3/3</div><h2>Пример: YAML → валидатор (реальный вывод)</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Валидаторы · каркас</div><h2>Каскад, условия и почему эвристика хрупкая</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2">
       <div>
-        <div class="code-label"><i></i>схема</div>
-        <pre>PassportInfo:
-  required: [series, number, issuedBy, issueDate, departmentCode]
-  properties:
-    series:
-      type: string
-      minLength: 4
-      maxLength: 4
-      pattern: '^\d{4}$'
-      description: Серия паспорта (4 цифры)
-    issueDate:
-      type: string
-      format: date
-    expiryDate:
-      type: string
-      format: date
-      nullable: true</pre>
-        <div class="note small">Правила не «додумываются»: <code>required</code> → <code>NotEmpty</code>,
-          <code>minLength/maxLength/pattern</code> → три метода, <code>format</code> → <code>Must</code>.
-          <code>expiryDate</code> не обязателен → правила <code>NotEmpty</code> нет.</div>
-        <div class="note"><b>⚠ Это дословный вывод генератора — и он не компилируется.</b>
-          <code>IssueDate</code> в DTO — <code>DateOnly</code>, а правило пытается
-          <code>DateOnly.TryParse(v, …)</code>, где <code>v</code> уже <code>DateOnly</code>
-          → CS1503. Разбор — на слайде 30.</div>
-      </div>
-      <div>
-        <div class="code-label"><i></i>Generated/Validators/PassportInfoValidator.cs</div>
-        <pre><span class="kw">public class</span> <span class="ty">PassportInfoValidator</span> : <span class="ty">AbstractValidator</span>&lt;<span class="ty">PassportInfo</span>&gt;
+        <div class="code-label"><i></i>ValidatorGenerator — фрагмент вывода</div>
+        <pre><span class="kw">public class</span> SendRequestValidator : AbstractValidator&lt;SendRequest&gt;
 {
-    <span class="kw">public</span> PassportInfoValidator()
+    <span class="kw">public</span> SendRequestValidator()
     {
-        RuleFor(x =&gt; x.Series)
+        RuleFor(x =&gt; x.Name)
             .NotEmpty()
-            .MinimumLength(<span class="nm">4</span>).WithMessage(<span class="st">"Серия паспорта (4 цифры)"</span>)
-            .MaximumLength(<span class="nm">4</span>).WithMessage(<span class="st">"Серия паспорта (4 цифры)"</span>)
-            .Matches(<span class="st">@"^\d{4}$"</span>).WithMessage(<span class="st">"Серия паспорта (4 цифры)"</span>);
+            .MinimumLength(<span class="nm">1</span>).WithMessage(<span class="st">"…"</span>);
 
-        RuleFor(x =&gt; x.IssueDate)
-            .NotEmpty()
-            .Must(v =&gt; v == <span class="kw">null</span> || <span class="ty">DateOnly</span>.TryParse(v, <span class="kw">out</span> _))
-            .WithMessage(<span class="st">"Invalid date format (expected YYYY-MM-DD)"</span>);
-
-        RuleFor(x =&gt; x.ExpiryDate)
-            .Must(v =&gt; v == <span class="kw">null</span> || <span class="ty">DateOnly</span>.TryParse(v, <span class="kw">out</span> _))
-            .WithMessage(<span class="st">"Invalid date format (expected YYYY-MM-DD)"</span>);
+        RuleFor(x =&gt; x.Items)
+            .NotNull()
+            .Must(list =&gt; list == <span class="kw">null</span> || list.Count &gt;= <span class="nm">1</span>)
+            …
     }
 }</pre>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 22 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 1/6</div><h2>Зачем схема тела запроса и почему генератор идёт мимо IR</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
       <div>
-        <h3 class="muted">Зачем</h3>
-        <ul class="bul tight">
-          <li><b>400 до десериализации.</b> Тело проверяется как JSON-документ: путь до поля
-            (<code>/applicant/birthDate</code>), а не «string → DateOnly failed».</li>
-          <li><b>Язык-независимый контракт.</b> Тот же файл читают gateway, тесты, моки,
-            другие сервисы — не только .NET.</li>
-          <li><b>Строгие вещи, которых нет в DTO:</b> <code>additionalProperties: false</code>,
-            <code>uniqueItems</code>, <code>maxProperties</code>, <code>oneOf</code>.</li>
-          <li><b>Документ самодостаточен.</b> Один файл = все <code>$defs</code>, без сети и
-            без исходного YAML.</li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="muted">Почему не по <code>SchemaNode</code></h3>
-        <ul class="bul tight">
-          <li>В IR <b>нет</b> <code>additionalProperties</code>, <code>readOnly</code>,
-            <code>examples</code>, <code>uniqueItems</code>, <code>maxProperties</code>,
-            <code>patternProperties</code> — а в JSON Schema они обязаны быть.</li>
-          <li>IR <b>склеивает</b> inline-объекты и теряет их структуру, а для валидации нужен
-            каждый уровень.</li>
-          <li>Для схемы нужны <b>все</b> <code>$ref</code>-цепочки, включая внешние файлы и
-            <code>requestBody → components/requestBodies</code>, а не только
-            <code>components/schemas</code>.</li>
-        </ul>
-        <div class="note green small">Поэтому <code>JsonSchemaGenerator</code> получает
-          <code>documentTree</code> + <code>documentKey</code> и работает с произвольными узлами
-          через <code>Dictionary&lt;string, object?&gt;</code>.</div>
-      </div>
-    </div>
-    <div class="note"><b>Ключевое различие:</b> DTO/валидаторы отвечают на вопрос «удобно ли
-      работать в C#», JSON Schema — «валиден ли байт-в-байт присланный JSON». Это разные задачи,
-      поэтому и два разных представления.</div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 23 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 2/6</div><h2>Алгоритм: от <code>paths</code> до файла на операцию</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <ol class="num-list sm">
-          <li><b>Обойти <code>paths</code></b> и для каждого HTTP-метода из
-            <code>EffectiveHttpMethods</code> (по умолчанию <code>post</code>) найти операцию.</li>
-          <li><b>Развернуть <code>requestBody</code></b> — <code>ResolveRefChainAsync</code>
-            идёт по цепочке <code>$ref</code> (например в <code>components/requestBodies</code>),
-            помнит посещённые ключи и падает на цикле.</li>
-          <li><b>Выбрать JSON-медиатипы</b>: <code>application/json</code> или
-            <code>*+json</code> (параметры после <code>;</code> отрезаются).</li>
-          <li><b>Построить документ</b> — <code>BuildSchemaDocumentAsync</code>:
-            конвертировать корень, затем «дотянуть» очередь <code>$defs</code>.</li>
-          <li><b>Имя файла</b> — <code>operationId</code> или <code>method+path</code>,
-            всё небезопасное → <code>_</code>; коллизия → суффикс <code>_2</code>.</li>
-          <li><b><code>index.json</code></b> — метод, путь, operationId, contentType, required,
-            schemaFile. Пишется, если есть хотя бы одна схема.</li>
-        </ol>
-      </div>
-      <div>
-        <div class="code-label"><i></i>JsonSchemaGenerator.GenerateAllAsync</div>
-        <pre><span class="kw">foreach</span> ((<span class="kw">var</span> path, <span class="kw">var</span> pathItemObj) <span class="kw">in</span> paths)
-<span class="kw">foreach</span> (<span class="kw">var</span> method <span class="kw">in</span> options.EffectiveHttpMethods)
-{
-    <span class="kw">if</span> (!pathItem.TryGetValue(method, <span class="kw">out var</span> opObj)) <span class="kw">continue</span>;
-    <span class="kw">if</span> (!operation.TryGetValue(<span class="st">"requestBody"</span>, <span class="kw">out var</span> rb)) <span class="kw">continue</span>;
-
-    <span class="kw">var</span> (body, bodyKey) = <span class="kw">await</span> ResolveRefChainAsync(rb, …);
-
-    <span class="kw">var</span> jsonTypes = content.Where(c =&gt; IsJsonMediaType(c.Key) &amp;&amp;
-                    c.Value <span class="kw">is</span> … m &amp;&amp; m.ContainsKey(<span class="st">"schema"</span>));
-
-    <span class="kw">foreach</span> ((<span class="kw">var</span> mediaType, <span class="kw">var</span> mediaObj) <span class="kw">in</span> jsonTypes)
-    {
-        <span class="kw">var</span> doc = <span class="kw">await</span> BuildSchemaDocumentAsync(…);
-        results.Add(<span class="kw">new</span> <span class="ty">GeneratedFile</span>(fileName, doc.ToJsonString(…)));
-        index.Add(<span class="kw">new</span> <span class="ty">JsonObject</span> { [<span class="st">"method"</span>] = …, … });
-    }
-}</pre>
-        <div class="note blue small">На реальном <code>loan_application.yaml</code>
-          (<code>post put</code>) получается 3 схемы + <code>index.json</code>;
-          <code>replaceLoanApplication</code> и <code>createLoanApplication</code> отличаются
-          только корневым <code>$ref</code>.</div>
+        <div class="card"><h4>SetValidator — каскад</h4>
+          <p>Если тип свойства — именованный класс, добавляется <code>SetValidator(new XValidator())</code>.
+          Это работает, пока у класса есть свой валидатор.</p></div>
+        <div class="card" style="border-left-color:#d29922"><h4>When — условная валидация</h4>
+          <p>Поля связываются с дискриминатором по <b>совпадению подстроки в имени</b>: <code>passport</code> ↔ <code>PassportInfo</code>.
+          Это эвристика. Переименование схемы или поля ломает её без ошибки.</p></div>
+        <div class="note small">Валидаторы строятся из IR, поэтому свойство-массив получает правила по <code>minItems</code>,
+          но без проверки элементов (<code>Items</code> не разобран).</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 24 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 3/6</div><h2>Конвертация ключевых слов OpenAPI → draft 2020-12</h2><div class="num"></div></div>
+<!-- 13 -->
+<section class="slide" data-accent="val">
+  <div class="s-head"><div class="kicker">Валидаторы · на практике</div><h2>Что получается на простом примере и почему это не собирается</h2><div class="num"></div></div>
   <div class="s-body">
-    <table>
-      <tr><th style="width:330px">OpenAPI 3.0</th><th style="width:360px">JSON Schema 2020-12</th><th>Зачем</th></tr>
-      <tr><td><code>$ref</code> + соседи</td><td>только <code>$ref</code> → <code>#/$defs/X</code></td>
-        <td>в 3.0 соседи <code>$ref</code> игнорируются — сохраняем ту же семантику</td></tr>
-      <tr><td><code>nullable: true</code> + <code>type: T</code></td><td><code>type: [T, "null"]</code></td>
-        <td>в <code>enum</code> добавляется <code>null</code></td></tr>
-      <tr><td><code>nullable</code> без <code>type</code> (<code>$ref</code>, <code>allOf</code>)</td>
-        <td><code>anyOf: [ {…}, {"type":"null"} ]</code></td><td>иначе <code>null</code> не пройдёт</td></tr>
-      <tr><td><code>exclusiveMinimum: true</code> + <code>minimum: N</code></td>
-        <td><code>exclusiveMinimum: N</code></td><td>в 2020-12 это число, а не флаг</td></tr>
-      <tr><td><code>exclusiveMaximum: true</code> + <code>maximum: N</code></td>
-        <td><code>exclusiveMaximum: N</code></td><td>то же для верхней границы</td></tr>
-      <tr><td><code>example: X</code></td><td><code>examples: [X]</code></td>
-        <td>если <code>examples</code> уже есть — не перетираем</td></tr>
-      <tr><td><code>readOnly: true</code> в <code>required</code></td><td>убирается из <code>required</code></td>
-        <td>клиент это поле не передаёт — иначе 100% ложная ошибка</td></tr>
-      <tr><td><code>discriminator</code>, <code>xml</code>, <code>externalDocs</code>, <code>x-*</code></td>
-        <td>удаляются</td><td>не ключевые слова JSON Schema</td></tr>
-      <tr><td><code>required: []</code> после фильтра</td><td>ключ не пишется</td>
-        <td><code>"required": []</code> валиден, но мусорен</td></tr>
+    <table class="tbl-dense">
+      <tr><th style="width:240px">Свойство</th><th style="width:180px">DTO</th><th style="width:250px">Правило</th><th>Результат</th></tr>
+      <tr><td><code>Item.Id</code> (uuid)</td><td><code>Guid</code></td><td><code>Guid.TryParse(v, out _)</code></td><td class="n">CS1503: <code>Guid</code> не строка</td></tr>
+      <tr><td><code>SendResponse.SentAt</code> (date-time)</td><td><code>DateTime</code></td><td><code>DateTime.TryParse(v, …)</code></td><td class="n">CS1503</td></tr>
+      <tr><td><code>SendResponse.MessageId</code> (uuid, optional)</td><td><code>Guid?</code></td><td><code>Guid.TryParse(v, …)</code></td><td class="n">CS1503</td></tr>
+      <tr><td><code>SendResponse.Status</code> (inline enum)</td><td><code>string</code></td><td><code>IsInEnum()</code></td><td class="n">отклоняет любое значение</td></tr>
+      <tr><td><code>SendRequest.Priority</code> (integer enum)</td><td><code>int</code></td><td><code>NotEmpty()</code></td><td class="w">enum не проверяется</td></tr>
+      <tr><td><code>SendRequest.Items</code> (массив Item)</td><td><code>List&lt;object&gt;</code></td><td><code>Must(count)</code></td><td class="w">элементы не проверяются</td></tr>
     </table>
-    <div class="cols c2" style="margin-top:12px">
-      <div class="note green small"><b>Что переносится как есть:</b> <code>type</code>,
-        <code>properties</code>, <code>items</code>, <code>allOf/oneOf/anyOf</code>,
-        <code>pattern</code>, <code>minLength</code>, <code>minimum</code>, <code>enum</code>,
-        <code>additionalProperties</code> (и <code>false</code>, и схема-map),
-        <code>uniqueItems</code>, <code>maxProperties</code>, <code>format</code>,
-        <code>patternProperties</code>, <code>prefixItems</code>.</div>
-      <div class="note small"><b>Проверено на живом примере</b> (<code>createLoanApplication.schema.json</code>):
-        <code>oneOf</code> — 1, <code>additionalProperties: false</code> — 2,
-        <code>additionalProperties: {…}</code> — 1, <code>uniqueItems</code> — 1,
-        <code>maxProperties</code> — 1, <code>readOnly</code> сохранён, но
-        <code>applicationId</code> в <code>required</code> отсутствует.</div>
-    </div>
+    <div class="note" style="margin-top:12px"><b>Что здесь важно.</b> Два генератора не согласованы: <code>RuleMapper</code>
+      предполагает строку, а <code>TypeMapper</code> уже выбрал <code>Guid</code>/<code>DateTime</code>. Это не
+      синтаксическая мелочь, а расхождение между генераторами. Поправить можно в обоих местах одновременно:
+      либо не мапить формат в типы, либо генерировать проверку под фактический тип.</div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 25 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 4/6</div><h2><code>$defs</code>: как внешние ссылки и циклы становятся одним файлом</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <div class="code-label"><i></i>RegisterDefAsync — сердце самодостаточности</div>
-        <pre><span class="kw">var</span> parsedRef = _refParser.Parse(refString);
-<span class="kw">var</span> targetKey = RefResolver.GetTargetDocumentKey(parsedRef, documentKey);
-<span class="kw">var</span> refKey = <span class="st">$"{targetKey}#{parsedRef.JsonPointer}"</span>;
-
-<span class="kw">if</span> (!ctx.DefNames.TryGetValue(refKey, <span class="kw">out var</span> defName))
-{
-    <span class="kw">var</span> tree = <span class="kw">await</span> ctx.Store.GetTreeAsync(targetKey, ct);
-    <span class="kw">var</span> target = pointer.Length == <span class="nm">0</span> ? tree : Resolve(tree, pointer);
-
-    defName = ctx.ReserveDefName(BuildDefBaseName(pointer, targetKey));
-    ctx.DefNames[refKey] = defName;
-    ctx.Pending.Enqueue(<span class="kw">new</span> PendingDef(defName, target, targetKey));
-}
-<span class="kw">return</span> <span class="st">$"#/$defs/{defName}"</span>;</pre>
-        <p class="small muted" style="margin-top:8px">
-          Ключ дедупликации — <b>«документ + pointer»</b>, а не имя: <code>Money</code> из
-          <code>money.yaml</code> и <code>Money</code> из <code>common.yaml</code> — разные схемы,
-          вторая получит имя <code>Money_2</code>.</p>
-      </div>
-      <div>
-        <div class="code-label"><i></i>Имена в $defs</div>
-        <ul class="bul tight small">
-          <li>Последний сегмент pointer'а: <code>…/schemas/PersonInfo</code> → <code>PersonInfo</code>.</li>
-          <li>Ссылка на весь файл (<code>./common/money.yaml</code>) → имя файла без расширения.</li>
-          <li><code>SanitizeIdentifier</code>: только <code>a-zA-Z0-9 _ - .</code>,
-            повторы <code>_</code> схлопываются, обрезка по краям.</li>
-          <li>Коллизия → <code>_2</code>, <code>_3</code>… (<code>ReserveDefName</code>).</li>
-          <li><code>SortedDictionary</code> → детерминированный порядок ключей в файле,
-            удобный diff в git.</li>
-        </ul>
-        <div class="code-label" style="margin-top:8px"><i></i>13 $defs из loan_application.yaml</div>
-        <pre>Address · Applicant · Collateral · Comment · Currency
-Employment · LoanApplication · LoanProduct · Money
-NoCollateral · Person · RealEstateCollateral
-VehicleCollateral</pre>
-        <div class="note green small">Внутри <code>Comment</code> стоит
-          <code>"$ref": "#/$defs/Comment"</code> — файл ссылается сам на себя и остаётся валидным.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 26 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 5/6</div><h2>Что лежит в файле и как им пользоваться</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <div class="code-label"><i></i>createPerson.schema.json (фрагменты)</div>
-        <pre>{
-  <span class="st">"$schema"</span>: <span class="st">"https://json-schema.org/draft/2020-12/schema"</span>,
-  <span class="st">"$comment"</span>: <span class="st">"Request body of POST /persons (operationId: createPerson)…"</span>,
-  <span class="st">"$ref"</span>: <span class="st">"#/$defs/CreatePersonRequestBody"</span>,
-  <span class="st">"$defs"</span>: {
-    <span class="st">"CreatePersonRequestBody"</span>: {
-      <span class="st">"type"</span>: <span class="st">"object"</span>,
-      <span class="st">"required"</span>: [<span class="st">"personInfo"</span>, <span class="st">"inn"</span>, <span class="st">"snils"</span>],
-      <span class="st">"properties"</span>: {
-        <span class="st">"personInfo"</span>: { <span class="st">"$ref"</span>: <span class="st">"#/$defs/PersonInfo"</span> },
-        …
-      }
-    },
-    <span class="st">"PassportInfo"</span>: { … },
-    <span class="st">"PassportInfo.expiryDate"</span>: {
-      <span class="st">"type"</span>: [<span class="st">"string"</span>, <span class="st">"null"</span>], <span class="st">"format"</span>: <span class="st">"date"</span>
-    }
-  }
-}</pre>
-      </div>
-      <div>
-        <div class="code-label"><i></i>JsonSchema/index.json</div>
-        <pre>[
-  {
-    <span class="st">"method"</span>: <span class="st">"POST"</span>,
-    <span class="st">"path"</span>: <span class="st">"/loan-applications"</span>,
-    <span class="st">"operationId"</span>: <span class="st">"createLoanApplication"</span>,
-    <span class="st">"contentType"</span>: <span class="st">"application/json"</span>,
-    <span class="st">"required"</span>: <span class="kw">true</span>,
-    <span class="st">"schemaFile"</span>: <span class="st">"createLoanApplication.schema.json"</span>
-  },
-  {
-    <span class="st">"method"</span>: <span class="st">"POST"</span>,
-    <span class="st">"path"</span>: <span class="st">"/loan-applications/{id}/comments"</span>,
-    <span class="st">"operationId"</span>: <span class="kw">null</span>,
-    <span class="st">"schemaFile"</span>: <span class="st">"post_loan-applications_id_comments.schema.json"</span>
-  }
-]</pre>
-        <div class="note small"><b>Правила имён файлов:</b> <code>operationId</code>, если он есть;
-          иначе <code>method + path</code> с заменой недопустимых символов
-          (<code>/loan-applications/{id}/comments</code> → <code>post_loan-applications_id_comments</code>).
-          Несколько JSON-медиатипов → <code>name.application_json.schema.json</code>.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 27 -->
-<section class="slide" data-accent="js">
-  <div class="s-head"><div class="kicker">JSON Schema · 6/6</div><h2>Рантайм: 400 с путём до поля, до десериализации</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2u">
-      <div>
-        <div class="code-label"><i></i>ASP.NET Core + JsonSchema.Net</div>
-        <pre><span class="kw">var</span> schema = JsonSchema.FromFile(<span class="st">"Generated/JsonSchema/createPerson.schema.json"</span>);
-<span class="kw">var</span> options = <span class="kw">new</span> <span class="ty">EvaluationOptions</span>
-{
-    OutputFormat = OutputFormat.List,
-    RequireFormatValidation = <span class="kw">true</span>   <span class="cm">// date / email / uuid</span>
-};
-
-app.MapPost(<span class="st">"/persons"</span>, <span class="kw">async</span> (<span class="ty">HttpRequest</span> request) =&gt;
-{
-    <span class="kw">var</span> body = <span class="kw">await</span> <span class="ty">JsonNode</span>.ParseAsync(request.Body);
-    <span class="kw">var</span> result = schema.Evaluate(body, options);
-
-    <span class="kw">if</span> (!result.IsValid)
-    {
-        <span class="kw">var</span> errors = result.Details.Where(d =&gt; d.HasErrors)
-            .SelectMany(d =&gt; d.Errors!.Select(e =&gt;
-                <span class="kw">new</span> { field = d.InstanceLocation.ToString(), error = e.Value }));
-        <span class="kw">return</span> Results.BadRequest(errors);
-        <span class="cm">// [{ "field": "/personInfo/lastName", "error": "…" }]</span>
-    }
-
-    <span class="kw">var</span> dto = body.Deserialize&lt;<span class="ty">CreatePersonRequestBody</span>&gt;();
-    <span class="kw">return</span> Results.Created();
-});</pre>
-      </div>
-      <div>
-        <div class="card"><h4>Почему до десериализации</h4>
-          <p>Схема видит «лишние» поля, неверные типы и нарушения в глубине дерева.
-          Сериализатор бы молча проигнорировал лишнее или упал с общей ошибкой.</p></div>
-        <div class="card"><h4>Две ловушки</h4>
-          <p><b>1. <code>format</code> — аннотация.</b> В draft 2020-12 <code>date</code>,
-          <code>email</code>, <code>uuid</code> по умолчанию <b>не проверяются</b>.
-          Нужен <code>RequireFormatValidation = true</code> (есть тест, который это фиксирует).<br>
-          <b>2. <code>discriminator</code> не переносится.</b> <code>oneOf</code> выбирает вариант
-          по содержимому — чтобы варианты исключали друг друга, добавьте в каждую схему
-          поле-дискриминатор с <code>enum: [VALUE]</code> (так сделано в
-          <code>samples/complex</code>).</p></div>
-        <div class="note small"><b>Несколько операций:</b> загрузите все файлы один раз на старте и
-          выбирайте по <code>method</code> + <code>path</code> из <code>index.json</code>.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 28 -->
+<!-- 14 -->
 <section class="slide" data-accent="mask">
-  <div class="s-head"><div class="kicker">Маскировка</div><h2>Тот же объект, но без PII — на уровне сериализации</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Маскировка · замысел</div><h2>Почему маскировка сделана именно так</h2><div class="num"></div></div>
   <div class="s-body">
-    <div class="cols c2u">
+    <div class="cols c2">
       <div>
-        <div class="code-label"><i></i>samples/masking-config.yaml</div>
+        <div class="code-label"><i></i>masking-config.yaml → атрибут в DTO</div>
         <pre>masking:
   rules:
     - fields: [series, number]
       strategy: partial
       visibleStart: 2
-      visibleEnd: 2
-
-    - fields: [lastName, firstName, middleName]
-      strategy: firstChar
-
-    - fields: [issuedBy, departmentCode]
-      strategy: full
-
-    - fields: [birthDate, issueDate, expiryDate]
-      strategy: yearOnly</pre>
-        <div class="code-label" style="margin-top:10px"><i></i>что получается в DTO</div>
+      visibleEnd: 2</pre>
         <pre>[<span class="at">Mask</span>(<span class="ty">MaskStrategy</span>.Partial, <span class="nm">2</span>, <span class="nm">2</span>)]
 [<span class="at">JsonPropertyName</span>(<span class="st">"series"</span>)]
-<span class="kw">public string</span> Series { <span class="kw">get</span>; <span class="kw">set</span>; }
-
-<span class="cm">// + partial-файл PersonInfo.Masking.cs</span>
-<span class="kw">public string</span> ToMaskedJson() =&gt;
-    JsonSerializer.Serialize(<span class="kw">this</span>, MaskingJsonOptions.Default);</pre>
+<span class="kw">public string</span> Series { <span class="kw">get</span>; <span class="kw">set</span>; }</pre>
       </div>
       <div>
-        <h3 class="muted">5 файлов инфраструктуры + partial'ы
-          <span class="tiny muted">— MaskStrategy · MaskAttribute · MaskingStrategyExecutor ·
-          MaskingJsonConverter · MaskingJsonOptions</span></h3>
-        <table class="tbl-dense">
-          <tr><th>Стратегия</th><th>Результат</th></tr>
-          <tr><td><code>Full</code></td><td><code>***</code></td></tr>
-          <tr><td><code>Partial</code></td><td><code>12**56</code> (видно 2 слева и 2 справа)</td></tr>
-          <tr><td><code>FirstChar</code></td><td><code>И*****</code></td></tr>
-          <tr><td><code>YearOnly</code></td><td><code>1990-**-**</code></td></tr>
-          <tr><td><code>Hash</code></td><td>первые 8 байт SHA-256 (hex)</td></tr>
-          <tr><td><code>None</code></td><td>без изменений</td></tr>
-        </table>
-        <div class="note"><b>Как задумано:</b> при записи объекта конвертер рефлексией обходит
-          свойства, берёт <code>[JsonPropertyName]</code> и <code>[Mask]</code>, для
-          <code>string</code>-значений применяет стратегию, остальное сериализует вложенно
-          (копия опций без самого себя — чтобы не уйти в рекурсию).</div>
-        <div class="note" style="border-color:#5c1f1f;background:#2a0f0f;color:#f5b8b8">
-          <b>⚠ Состояние на сегодня:</b> конвертер не компилируется (CS0120: <code>GetType()</code>
-          в статическом методе), а <code>MaskingJsonOptions.Default</code> его вообще не регистрирует —
-          даже после починки <code>ToMaskedJson()</code> вернёт JSON <b>без маскировки</b>.
-          Подробнее — слайд 31.</div>
-        <div class="note small"><b>Ограничение:</b> маскируются только <code>string</code>;
-          правило ищется по <b>имени поля</b> без пути — правило для объектного поля
-          (<code>inn</code>, <code>snils</code>) даст атрибут-«пустышку».</div>
+        <ul class="bul tight">
+          <li><b>Правила в одном месте.</b> YAML описывает, какие поля секретны. Генератор переносит это в атрибут, поэтому правило живёт рядом с полем.</li>
+          <li><b>Отдельный метод, а не глобальный логгер.</b> <code>ToMaskedJson()</code> вызывает разработчик. Обычная сериализация не меняется, и не маскирует то, что нужно отправить клиенту.</li>
+          <li><b>partial-класс.</b> <code>{Name}.Masking.cs</code> дополняет DTO и не перезаписывает ручной код.</li>
+          <li><b>Маскировка на границе сериализации</b>, а не регулярками по тексту лога: правило привязано к полю, а не к значению.</li>
+        </ul>
+        <div class="note small"><b>Альтернативы и почему нет:</b> regex по логу ломается на формате и пропускает
+          значения без шаблона; ручной <code>ToString()</code> расходится с моделью при каждом изменении.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 29 -->
+<!-- 15 -->
+<section class="slide" data-accent="mask">
+  <div class="s-head"><div class="kicker">Маскировка · состояние</div><h2>Что происходит на самом деле — проверено запуском</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div>
+        <div class="code-label"><i></i>1. Сборка: CS0120</div>
+        <pre><span class="cm">// MaskingJsonConverter.cs(55): GetType() в static-методе
+</span>copy.Converters[i].GetType() == GetType()</pre>
+        <div class="code-label" style="margin-top:10px"><i></i>2. Регистрация: нет</div>
+        <pre><span class="cm">// MaskingJsonOptions.Default не содержит конвертера,
+// у DTO нет [JsonConverter(...)]. System.Text.Json
+// не читает [Mask] сам по себе.</span></pre>
+      </div>
+      <div>
+        <div class="code-label"><i></i>3. Результат после правки CS0120 (проверка в отдельном проекте)</div>
+        <pre>ToMaskedJson: {"name":"Ivan","priority":2,"items":[]}
+Serialize:    {"name":"Ivan","priority":2,"metadata":null,"items":[]}</pre>
+        <div class="note red"><b>Маска не применяется.</b> <code>name</code> с <code>firstChar</code>
+          выводится полностью. <code>ToMaskedJson()</code> сейчас эквивалентен обычной сериализации
+          (кроме <code>null</code>, которые пропускаются).</div>
+        <div class="note small"><b>Исправление</b> — подключить конвертер на уровне класса или в опциях и
+          исправить <code>GetType()</code>. Тесты это не ловили: они проверяют текст, а не результат.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-accent="mask">
+  <div class="s-head"><div class="kicker">Маскировка · правила и стратегии</div><h2>Что маскируется и как</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2u">
+      <div>
+        <table class="tbl-dense">
+          <tr><th>Стратегия</th><th>Результат</th></tr>
+          <tr><td><code>Full</code></td><td><code>***</code></td></tr>
+          <tr><td><code>Partial(2, 2)</code></td><td><code>12**56</code></td></tr>
+          <tr><td><code>FirstChar</code></td><td><code>И*****</code></td></tr>
+          <tr><td><code>YearOnly</code></td><td><code>1990-**-**</code></td></tr>
+          <tr><td><code>Hash</code></td><td>первые 8 байт SHA-256, hex</td></tr>
+          <tr><td><code>None</code></td><td>без изменений</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="card"><h4>Поиск по имени поля</h4>
+          <p><code>FindRuleForField(name)</code> ищет имя без учёта регистра и без пути. Правило <code>number</code>
+          сработает в любом классе с полем <code>number</code>.</p></div>
+        <div class="card"><h4>Только строки</h4>
+          <p><code>[Mask]</code> применяется к <code>string</code>. Правило на объектное или числовое поле не даёт эффекта.</p></div>
+        <div class="note small">Это осознанный компромисс: правила короткие и читаемые, но точность по пути и типу не гарантирована.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · зачем отдельный путь</div><h2>Почему схема строится по сырому дереву, а не по IR</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div>
+        <p>Схема запроса должна проверять то же, что написано в спецификации. IR этого не хранит:</p>
+        <table class="tbl-dense">
+          <tr><th>Нужно для схемы</th><th>В IR?</th></tr>
+          <tr><td><code>additionalProperties</code></td><td class="n">нет</td></tr>
+          <tr><td><code>readOnly</code></td><td class="n">нет</td></tr>
+          <tr><td><code>uniqueItems</code>, <code>maxProperties</code>, <code>patternProperties</code></td><td class="n">нет</td></tr>
+          <tr><td>все <code>$ref</code>-цепочки, включая <code>components/requestBodies</code></td><td class="w">частично</td></tr>
+          <tr><td>inline-объекты внутри свойств</td><td class="w">теряются</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="card"><h4>Цена решения</h4>
+          <p>Два пути обхода документа. Конвертер ключевых слов нужно поддерживать отдельно от IR.</p></div>
+        <div class="card"><h4>Выигрыш</h4>
+          <p>Схема проверяет то, что реально написано. Файл самодостаточен и читается любым JSON Schema-валидатором.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · алгоритм</div><h2>От requestBody до файла: обход и очередь</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2u">
+      <div>
+        <ol class="num-list">
+          <li><b>Операции</b>: по <code>paths</code> и методам из <code>--json-schema-methods</code> (по умолчанию <code>post</code>).</li>
+          <li><b>requestBody</b>: <code>ResolveRefChainAsync</code> разворачивает <code>$ref</code> до объекта, защищаясь от циклов в самих ссылках.</li>
+          <li><b>Медиатипы</b>: JSON и <code>+json</code>. Каждый — отдельный файл.</li>
+          <li><b>Конвертация</b>: <code>ConvertSchemaAsync</code> рекурсивно копирует ключевые слова и переписывает <code>$ref</code>.</li>
+          <li><b>Очередь</b>: каждый встреченный <code>$ref</code> ставится в <code>Pending</code>, пока не сконвертирован. Все записи идут в <code>$defs</code>.</li>
+          <li><b>Файл</b>: <code>$schema</code> + корневой объект + <code>$defs</code>.</li>
+        </ol>
+      </div>
+      <div>
+        <div class="code-label"><i></i>RegisterDefAsync — сердце самодостаточности</div>
+        <pre><span class="kw">if</span> (!ctx.DefNames.TryGetValue(refKey, <span class="kw">out var</span> defName))
+{
+    defName = ctx.ReserveDefName(BuildDefBaseName(pointer, targetKey));
+    ctx.DefNames[refKey] = defName;           <span class="cm">// имя занято ДО обхода</span>
+    ctx.Pending.Enqueue(<span class="kw">new</span> PendingDef(defName, target, targetKey));
+}
+<span class="kw">return</span> <span class="st">$"#/$defs/{defName}"</span>;</pre>
+        <div class="note small">Имя резервируется до конвертации. Поэтому самоссылка (<code>Comment → replies → Comment</code>)
+          не уходит в бесконечный цикл: второй раз найдётся уже известное имя.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · $defs</div><h2><code>$defs</code>: одна схема на цель, имена и детерминизм</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div>
+        <p><code>$defs</code> — ключевое слово JSON Schema 2020-12 для именованных подсхем. На них ссылаются
+        через <code>$ref: "#/$defs/Name"</code>. Файл остаётся самодостаточным: он не обращается ни к
+        каким другим файлам.</p>
+        <ul class="bul tight">
+          <li><b>Ключ дедупликации</b> — «документ + pointer», а не имя. <code>Money</code> из двух файлов станут <code>Money</code> и <code>Money_2</code>.</li>
+          <li><b>Имя</b> — последний сегмент pointer'а; для ссылки на весь файл — имя файла без расширения.</li>
+          <li><b>Санитайзер</b> оставляет <code>a-zA-Z0-9 _ - .</code>, остальное заменяет на <code>_</code>.</li>
+          <li><b>Порядок</b> — <code>SortedDictionary</code>, поэтому diff в git стабилен.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="code-label"><i></i>sendPayload.Rq.schema.json (фрагмент)</div>
+        <pre>{
+  <span class="st">"$schema"</span>: <span class="st">"https://json-schema.org/draft/2020-12/schema"</span>,
+  <span class="st">"$ref"</span>: <span class="st">"#/$defs/SendRequest"</span>,
+  <span class="st">"$defs"</span>: {
+    <span class="st">"Item"</span>: { <span class="st">"type"</span>: <span class="st">"object"</span>, … },
+    <span class="st">"SendRequest"</span>: {
+      <span class="st">"properties"</span>: {
+        <span class="st">"items"</span>: { <span class="st">"items"</span>: { <span class="st">"$ref"</span>: <span class="st">"#/$defs/Item"</span> } }
+      }
+    }
+  }
+}</pre>
+        <div class="note small">В корне — ссылка, а не копия схемы: <code>$ref</code> в OpenAPI 3.0 отменяет соседние ключи,
+          и генератор сохраняет это правило.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · ключевые слова</div><h2>Конвертация OpenAPI 3.0 → draft 2020-12</h2><div class="num"></div></div>
+  <div class="s-body">
+    <table>
+      <tr><th style="width:330px">OpenAPI 3.0</th><th style="width:330px">JSON Schema 2020-12</th><th>Зачем</th></tr>
+      <tr><td><code>nullable: true</code> + <code>type: T</code></td><td><code>type: [T, "null"]</code></td><td>в <code>enum</code> добавляется <code>null</code></td></tr>
+      <tr><td><code>nullable</code> без <code>type</code> (<code>$ref</code>, <code>allOf</code>)</td><td><code>anyOf: [схема, {"type":"null"}]</code></td><td>иначе <code>null</code> не пройдёт</td></tr>
+      <tr><td><code>exclusiveMinimum: true</code> + <code>minimum: N</code></td><td><code>exclusiveMinimum: N</code></td><td>в 2020-12 это число, а не флаг</td></tr>
+      <tr><td><code>example: X</code></td><td><code>examples: [X]</code></td><td>если <code>examples</code> уже есть — не трогаем</td></tr>
+      <tr><td><code>readOnly</code> в <code>required</code> (только запрос)</td><td>поле убирается из <code>required</code></td><td>клиент его не передаёт</td></tr>
+      <tr><td><code>discriminator</code>, <code>xml</code>, <code>externalDocs</code>, <code>x-*</code></td><td>удаляются</td><td>не ключевые слова JSON Schema</td></tr>
+    </table>
+    <div class="cols c2" style="margin-top:12px">
+      <div class="note green small"><b>Переносится как есть:</b> <code>type</code>, <code>properties</code>, <code>items</code>,
+        <code>allOf/oneOf/anyOf</code>, <code>pattern</code>, <code>minLength</code>, <code>minimum</code>, <code>enum</code>,
+        <code>additionalProperties</code>, <code>uniqueItems</code>, <code>maxProperties</code>, <code>format</code>,
+        <code>patternProperties</code>, <code>prefixItems</code>.</div>
+      <div class="note blue small"><b>Для ответов</b> <code>readOnly</code> остаётся в <code>required</code>: сервер его возвращает.
+        <code>writeOnly</code> пока не исключается нигде — это известное ограничение.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · draft 2020-12</div><h2>Что в 2020-12 важно знать при валидации</h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2">
+      <div class="card"><h4><code>format</code> — аннотация по умолчанию</h4>
+        <p>Валидатор не проверяет <code>date</code>, <code>email</code>, <code>uuid</code>, пока не включена проверка.
+        Для JsonSchema.Net — <code>RequireFormatValidation = true</code>; тест фиксирует это поведение.</p></div>
+      <div class="card"><h4><code>$defs</code> вместо <code>definitions</code></h4>
+        <p>В 2020-12 используется <code>$defs</code>. Старые инструменты, знающие только draft-07, могут его не понимать.</p></div>
+      <div class="card"><h4><code>discriminator</code> не переносится</h4>
+        <p><code>oneOf</code> выбирает вариант по содержимому. Чтобы варианты не пересекались, добавьте каждому
+        поле с <code>enum: [VALUE]</code> (так сделано в <code>samples/complex</code>).</p></div>
+      <div class="card"><h4><code>exclusiveMinimum</code> — число</h4>
+        <p>Флаг из OpenAPI 3.0 превращается в число. Старая форма <code>exclusiveMinimum: true</code> в 2020-12 не валидна.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 22 -->
+<section class="slide" data-accent="js">
+  <div class="s-head"><div class="kicker">JSON Schema · рантайм</div><h2>Как использовать файл и что видно в <code>index.json</code></h2><div class="num"></div></div>
+  <div class="s-body">
+    <div class="cols c2u">
+      <div>
+        <div class="code-label"><i></i>ASP.NET Core + JsonSchema.Net</div>
+        <pre><span class="kw">var</span> schema = JsonSchema.FromFile(<span class="st">"Generated/JsonSchema/sendPayload.Rq.schema.json"</span>);
+<span class="kw">var</span> options = <span class="kw">new</span> EvaluationOptions
+{
+    OutputFormat = OutputFormat.List,
+    RequireFormatValidation = <span class="kw">true</span>
+};
+<span class="kw">var</span> result = schema.Evaluate(<span class="kw">await</span> JsonNode.ParseAsync(request.Body), options);
+<span class="kw">if</span> (!result.IsValid) <span class="cm">// ошибки с путями полей</span></pre>
+      </div>
+      <div>
+        <div class="code-label"><i></i>index.json</div>
+        <pre>[
+  { <span class="st">"method"</span>: <span class="st">"POST"</span>, <span class="st">"path"</span>: <span class="st">"/send"</span>,
+    <span class="st">"operationId"</span>: <span class="st">"sendPayload"</span>, <span class="st">"kind"</span>: <span class="st">"Rq"</span>,
+    <span class="st">"statusCode"</span>: <span class="kw">null</span>, <span class="st">"required"</span>: <span class="kw">true</span>,
+    <span class="st">"schemaFile"</span>: <span class="st">"sendPayload.Rq.schema.json"</span> },
+  { … <span class="st">"kind"</span>: <span class="st">"Rs"</span>, <span class="st">"statusCode"</span>: <span class="st">"200"</span> }
+]</pre>
+        <div class="note small"><code>index.json</code> нужен, если схемы ищут по <code>method + path</code> в рантайме.
+          Для одного эндпоинта достаточно имени файла. Вопрос о его пользе открыт.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 23 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Качество</div><h2>383 теста и один трюк с payload-файлами</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Качество</div><h2>386 тестов и то, что они не проверяют</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2u">
       <div>
         <table>
           <tr><th>Проект</th><th style="width:70px">Тестов</th><th>Что проверяет</th></tr>
-          <tr><td>Core.Tests</td><td><b>154</b></td>
-            <td>YAML/JSON-парсинг (включая quoted-скаляры), <code>$ref</code> всех видов,
-              JSON Pointer, кеш, детектор циклов, IRBuilder</td></tr>
-          <tr><td>Generators.Tests</td><td><b>147</b></td>
-            <td>DTO (типы, nullable, allOf, enum), <code>RuleMapper</code> и валидаторы,
-              masking, JSON Schema — в т.ч. <b>реальная валидация</b> через JsonSchema.Net</td></tr>
-          <tr><td>Cli.Tests</td><td><b>30</b></td>
-            <td>Пайплайн с записью на диск, флаги <code>--*-only</code>, коды выхода,
-              загрузка masking-конфига</td></tr>
-          <tr><td>Integration.Tests</td><td><b>52</b></td>
-            <td><code>openapi_example.yaml</code> → IR; <code>samples/complex</code> →
-              JSON Schema → валидация тел запросов</td></tr>
+          <tr><td>Core.Tests</td><td><b>154</b></td><td>YAML/JSON-парсинг, <code>$ref</code>, JSON Pointer, циклы, IRBuilder</td></tr>
+          <tr><td>Generators.Tests</td><td><b>150</b></td><td>строки DTO, правил и масок; JSON Schema через JsonSchema.Net</td></tr>
+          <tr><td>Cli.Tests</td><td><b>30</b></td><td>запись на диск, флаги <code>--*-only</code>, коды выхода</td></tr>
+          <tr><td>Integration.Tests</td><td><b>52</b></td><td><code>openapi_example.yaml</code> → IR; <code>samples/complex</code> → валидация тел запросов</td></tr>
         </table>
-        <div class="note green" style="margin-top:10px"><code>dotnet test</code> — все 383 зелёные,
-          ~5 секунд суммарно. Генераторы сравнивают строки, поэтому быстрые.</div>
-        <div class="note"><b>Важная оговорка:</b> ни один тест не компилирует и не запускает
-          сгенерированный код — проверяется <i>текст</i>. Поэтому дефекты, найденные
-          компиляцией на следующем слайде, тестами не ловятся.</div>
       </div>
       <div>
-        <div class="code-label"><i></i>samples/complex/payloads/</div>
-        <pre>valid_full.json
-valid_minimal.json
-valid_vehicle_with_null_purpose.json
-
-invalid_missing_applicant.json
-invalid_amount_zero_exclusive_min.json
-invalid_address_missing_city.json
-invalid_consents_duplicates.json
-invalid_consent_extra_property.json
-invalid_latin_last_name_pattern.json
-invalid_vehicle_bad_vin.json
-invalid_nested_reply_empty_text.json
-… 18 файлов invalid_*</pre>
-        <div class="card"><h4>Тест-кейс = файл</h4>
-          <p><code>ValidPayloads</code> / <code>InvalidPayloads</code> строятся из имён файлов
-            (<code>Directory.GetFiles(…, "valid_*.json")</code>). Чтобы проверить новый случай,
-            достаточно положить JSON — код теста не меняется.</p></div>
-        <div class="card"><h4>Генерация один раз на прогон</h4>
-          <p><code>Lazy&lt;Task&lt;Dictionary&lt;string,string&gt;&gt;&gt;</code> — схема генерируется
-            один раз и переиспользуется всеми 50+ кейсами.</p></div>
+        <div class="note red"><b>Важная оговорка.</b> Ни один тест не компилирует сгенерированный код и не выполняет
+          маскировку. Поэтому CS1503, CS0120 и «маска не работает» тестами не ловятся.</div>
+        <div class="note green small"><b>Что тесты ловят хорошо:</b> JSON Schema реально проверяет тела запросов
+          (включая <code>invalid_*</code>). Это самая сильная часть проекта.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 30 -->
+<!-- 24 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Проверено компиляцией</div><h2>Что будет, если сгенерированный код просто собрать</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Матрица</div><h2>Что проверено сборкой и запуском</h2><div class="num"></div></div>
   <div class="s-body">
-    <p class="lede" style="margin-bottom:12px">Сценарий: <code>generate</code> → положить вывод в пустой
-      проект (<code>net8.0</code> + FluentValidation 12.1) → <code>dotnet build</code>.</p>
     <table class="tbl-dense">
-      <tr><th style="width:290px">Что генерировали</th><th style="width:120px">Результат</th><th>Детали</th></tr>
-      <tr><td><code>openapi_example.yaml</code>, <code>--dto-only</code></td>
-        <td class="y">собирается</td><td>13 классов, 0 ошибок, 21 предупреждение CS8618 (non-nullable без инициализации)</td></tr>
-      <tr><td><code>openapi_example.yaml</code>, всё + masking</td>
-        <td class="n">не собирается</td><td>16 ошибок: CS1010/CS1003/CS1026 — перевод строки внутри
-          <code>WithMessage("…")</code> у INN и SNILS</td></tr>
-      <tr><td>то же, после правки сообщений</td>
-        <td class="n">не собирается</td><td>12 ошибок: CS1503 — <code>DateOnly/DateTime/Guid.TryParse(v)</code>,
-          где <code>v</code> уже <code>DateOnly/DateTime/Guid</code>; CS0246 — валидаторы
-          <code>ConflictErrorResponse</code>, <code>ValidationErrorResponse</code> без классов;
-          CS0120 в <code>MaskingJsonConverter</code></td></tr>
-      <tr><td><code>loan_application.yaml</code>, <code>--dto-only</code></td>
-        <td class="n">не собирается</td><td>4 × CS0246: нет классов <code>Money</code>, <code>Address</code>
-          (внешние файлы), <code>Applicant</code> (<code>allOf</code>), <code>Collateral</code>
-          (<code>oneOf</code>)</td></tr>
-      <tr><td><code>--json-schema-only</code> (оба примера)</td>
-        <td class="y">работает</td><td>52 интеграционных теста: схемы валидируют реальные тела
-          через <code>JsonSchema.Net</code>, включая <code>invalid_*</code> кейсы</td></tr>
+      <tr><th style="width:340px">Сценарий</th><th style="width:130px">Результат</th><th>Детали</th></tr>
+      <tr><td><code>open_api_example_simple.yaml</code>, DTO</td><td class="y">собирается</td><td>3 класса, предупреждения CS8618; массив и enum потеряны</td></tr>
+      <tr><td><code>open_api_example_simple.yaml</code>, валидаторы</td><td class="n">не собирается</td><td>3 × CS1503 (<code>Guid</code>, <code>DateTime</code>)</td></tr>
+      <tr><td><code>openapi_example.yaml</code>, <code>--dto-only</code></td><td class="y">собирается</td><td>13 классов; 21 предупреждение CS8618</td></tr>
+      <tr><td><code>openapi_example.yaml</code>, всё + маскировка</td><td class="n">не собирается</td><td>ошибки CS1010 (перенос в <code>WithMessage</code>), CS1503, CS0246, CS0120</td></tr>
+      <tr><td><code>loan_application.yaml</code>, <code>--dto-only</code></td><td class="n">не собирается</td><td>CS0246: нет классов <code>Money</code>, <code>Address</code>, <code>Applicant</code>, <code>Collateral</code></td></tr>
+      <tr><td>маскировка, исполнение <code>ToMaskedJson()</code></td><td class="n">не работает</td><td>после правки CS0120 вывод без масок (слайд 15)</td></tr>
+      <tr><td>JSON Schema (оба примера)</td><td class="y">работает</td><td>валидация тел запросов через JsonSchema.Net</td></tr>
     </table>
-
-    <div class="cols c2" style="margin-top:12px">
-      <div>
-        <div class="code-label"><i></i>дефект №1 — перевод строки в сообщении</div>
-        <pre><span class="cm">// INNValidator.cs:12 — CS1010: символ новой строки в константе</span>
-.MinimumLength(<span class="nm">12</span>).WithMessage(<span class="st">"12-значный ИНН… на стороне сервера.
-"</span>)</pre>
-        <p class="tiny muted" style="margin:4px 0 0">Причина: <code>description</code> в YAML —
-          block scalar <code>&gt;</code>, значение приходит с завершающим <code>\n</code>.
-          Экранируется только <code>"</code>, но не <code>\r\n</code>.</p>
-      </div>
-      <div>
-        <div class="code-label"><i></i>дефект №2 — тип уже смаплен</div>
-        <pre><span class="cm">// PersonInfoValidator.cs:27 — CS1503</span>
-<span class="cm">// DTO:  public DateOnly? BirthDate { get; set; }</span>
-.Must(v =&gt; v == <span class="kw">null</span> || <span class="ty">DateOnly</span>.TryParse(v, <span class="kw">out</span> _))</pre>
-        <p class="tiny muted" style="margin:4px 0 0"><code>RuleMapper</code> считает, что в DTO лежит
-          <code>string</code> (проверка формата «на строке»), а <code>TypeMapper</code> уже отдал
-          <code>DateOnly</code>. Два генератора не согласованы.</p>
-      </div>
-    </div>
+    <div class="note small" style="margin-top:8px">Воспроизведение: <code>generate</code> → вывод в пустой проект <code>net8.0</code> → <code>dotnet build</code>.</div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 31 -->
+<!-- 25 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Честный разговор</div><h2>Матрица поддержки и известные ограничения</h2><div class="num"></div></div>
-  <div class="s-body">
-    <table class="tbl-dense tbl-x">
-      <tr><th style="width:300px">Конструкция</th><th style="width:130px">DTO</th><th style="width:170px">Валидатор</th><th>JSON Schema</th></tr>
-      <tr><td>примитивы без <code>format</code></td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
-      <tr><td><code>format: email</code></td><td class="d">—</td><td class="y">✓</td><td class="y">✓</td></tr>
-      <tr><td><code>format: date</code> / <code>date-time</code> / <code>uuid</code></td>
-        <td class="w">→ DateOnly/DateTime/Guid</td><td class="n">CS1503</td><td class="y">✓</td></tr>
-      <tr><td>описание с переводом строки</td><td class="y">✓ XML-doc</td><td class="n">CS1010 в <code>WithMessage</code></td><td class="y">✓</td></tr>
-      <tr><td><code>required</code>, <code>nullable</code></td><td class="y">✓ (<code>?</code>)</td><td class="y">✓</td><td class="y">✓</td></tr>
-      <tr><td><code>minLength</code> / <code>pattern</code> / <code>minimum</code></td><td class="d">—</td><td class="y">✓</td><td class="y">✓</td></tr>
-      <tr><td><code>uniqueItems</code>, <code>maxProperties</code>, <code>additionalProperties</code></td><td class="d">—</td><td class="w">нет правил</td><td class="y">✓</td></tr>
-      <tr><td><code>$ref</code> на объект в <code>components/schemas</code></td><td class="y">✓</td><td class="y">✓ <code>SetValidator</code></td><td class="y">✓</td></tr>
-      <tr><td>enum через <code>$ref</code></td><td class="w">string</td><td class="w">NotNull вместо IsInEnum</td><td class="y">✓</td></tr>
-      <tr><td>inline enum (без имени)</td><td class="w">string</td><td class="n">IsInEnum на string → отклоняет всё</td><td class="y">✓</td></tr>
-      <tr><td>inline array (<code>items: {$ref}</code>)</td><td class="w">List&lt;object&gt;</td><td class="y">count-правила</td><td class="y">✓</td></tr>
-      <tr><td>inline object внутри массива/map</td><td class="n">object / List&lt;object&gt;</td><td class="d">—</td><td class="y">✓</td></tr>
-      <tr><td><code>allOf</code> (inline-части)</td><td class="w">класс может не появиться (CS0246)</td><td class="w">свойства не проверяются</td><td class="y">✓</td></tr>
-      <tr><td><code>oneOf</code> + <code>discriminator</code></td><td class="n">класс не генерируется (CS0246)</td><td class="w">пустой валидатор</td><td class="y">✓ (без discriminator)</td></tr>
-      <tr><td>внешний файл (<code>./common/money.yaml</code>)</td><td class="n">тип есть, класса нет (CS0246)</td><td class="w">валидатор-ссылка есть, класса нет</td><td class="y">✓ в <code>$defs</code></td></tr>
-      <tr><td>циклическая ссылка</td><td class="w">List&lt;object&gt;</td><td class="w">—</td><td class="y">✓</td></tr>
-      <tr><td><code>--class-prefix/suffix</code></td><td class="y">✓</td><td class="n">имена не синхронизированы</td><td class="d">—</td></tr>
-      <tr><td>маскировка (<code>--masking-config</code>)</td><td class="w">атрибуты + partial ✓</td><td class="d">—</td><td class="n">CS0120 + конвертер не подключён</td></tr>
-    </table>
-    <div class="note" style="margin-top:8px;padding:7px 12px"><b>Читать матрицу так:</b> зелёное —
-      проверено тестами <i>и</i> компиляцией/запуском; жёлтое — работает с оговоркой; красное —
-      на сегодня не работает. Каждый красный пункт воспроизводится командой <code>generate</code>
-      + <code>dotnet build</code>.</div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 31 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Честный разговор</div><h2>Что чинить в первую очередь</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Приоритеты</div><h2>Что чинить в первую очередь</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2">
       <div>
-        <div class="card" style="border-left-color:#f85149"><h4>1. Рекурсия в <code>BuildSchemaNodeFromInlineAsync</code></h4>
-          <p>Сейчас inline-схема читается «в один уровень». Рекурсивный вызов для
-          <code>properties</code>/<code>items</code>/<code>allOf</code> закрывает сразу
-          четыре строки матрицы: inline-массив, inline-объект, <code>allOf</code>, циклы.</p></div>
-        <div class="card" style="border-left-color:#f85149"><h4>2. <code>EnumValues</code> при резолве <code>$ref</code></h4>
-          <p><code>RefResolver.ConvertToSchemaNode</code> копирует только <code>Type</code> и
-          <code>Description</code>. Добавить <code>EnumValues</code>/<code>Rules</code> —
-          и enum'ы начнут работать: <code>Gender</code>, <code>DocumentType</code>,
-          <code>IsInEnum()</code>.</p></div>
-        <div class="card" style="border-left-color:#d29922"><h4>3. Согласовать имена DTO и валидаторов</h4>
-          <p><code>DtoValidatorOptions.ClassSuffix</code> есть, но CLI его не передаёт, а
-          <code>SetValidator</code> вообще игнорирует prefix/suffix. Один общий
-          <code>ClassNameResolver</code> решает проблему.</p></div>
+        <div class="card" style="border-left-color:#f85149"><h4>1. Маскировка</h4>
+          <p>Исправить CS0120 и подключить конвертер. Добавить тест, который проверяет <i>результат</i> <code>ToMaskedJson()</code>, а не текст.</p></div>
+        <div class="card" style="border-left-color:#f85149"><h4>2. Рекурсия в inline-схемах</h4>
+          <p><code>BuildSchemaNodeFromInlineAsync</code> должен заходить в <code>properties</code> и <code>items</code>.
+          Это закрывает массивы, объекты и часть <code>List&lt;object&gt;</code>.</p></div>
+        <div class="card" style="border-left-color:#f85149"><h4>3. Типы против правил</h4>
+          <p>Согласовать <code>TypeMapper</code> и <code>RuleMapper</code>: <code>Guid</code>/<code>DateTime</code> не должны проверяться
+          как строки.</p></div>
       </div>
       <div>
-        <div class="card" style="border-left-color:#d29922"><h4>4. Внешние схемы в IR</h4>
-          <p><code>Money</code>/<code>Address</code> упоминаются в типах, но не попадают в
-          <code>Dictionary&lt;string, SchemaNode&gt;</code> (он строится только из
-          <code>components/schemas</code> корня). Нужно «дотягивать» внешние схемы в тот же граф
-          и генерировать для них DTO/валидаторы.</p></div>
-        <div class="card" style="border-left-color:#d29922"><h4>5. <code>RemoteHttpLoader</code></h4>
-          <p>Классификация <code>Remote</code> уже есть; нужна реализация
-          <code>IDocumentLoader</code> поверх <code>HttpClient</code> — и HTTP-<code>$ref</code>
-          заработает во всех четырёх генераторах.</p></div>
-        <div class="card" style="border-left-color:#58a6ff"><h4>6. Мелочи, которые видит потребитель</h4>
-          <p><code>required</code>-модификатор или инициализаторы (CS8618);
-          <code>JsonStringEnumConverter</code> для enum'ов; не генерировать пустые валидаторы;
-          писать <code>[Mask]</code> только на <code>string</code>.</p></div>
-        <div class="note blue small">Хорошая новость: всё это — точечные правки в Core/Generators,
-          тесты на каждый случай уже есть или добавляются одним файлом.</div>
+        <div class="card" style="border-left-color:#d29922"><h4>4. enum</h4>
+          <p>Пропускаются integer enum; inline enum даёт <code>IsInEnum()</code> на строке. <code>RefResolver</code> не переносит <code>EnumValues</code>.</p></div>
+        <div class="card" style="border-left-color:#d29922"><h4>5. Внешние схемы и HTTP</h4>
+          <p>Схемы из внешних файлов не попадают в граф; HTTP-загрузчика нет.</p></div>
+        <div class="card" style="border-left-color:#58a6ff"><h4>6. Имена DTO и валидаторов</h4>
+          <p>Префиксы и суффиксы применяются не везде одинаково.</p></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 32 -->
+<!-- 26 -->
 <section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Кейсы</div><h2>Где проект даёт выигрыш сразу</h2><div class="num"></div></div>
+  <div class="s-head"><div class="kicker">Применение</div><h2>Когда инструмент подходит и когда нет</h2><div class="num"></div></div>
   <div class="s-body">
     <div class="cols c2">
       <div>
-        <div class="card"><h4>1. Контракт-первый backend</h4>
-          <p>Команда сначала согласует <code>openapi.yaml</code>, потом генерирует DTO и валидаторы
-          в CI. Расхождение «спека ↔ код» ловится на сборке, а не на ревью.
-          <span class="muted">Подходит: новые сервисы, команды с API-first процессом.</span></p></div>
-        <div class="card" style="border-left-color:#bc8cff"><h4>2. PII в логах и трейсах (152-ФЗ)</h4>
-          <p>Один и тот же DTO: <code>JsonSerializer.Serialize</code> — для отправки,
-          <code>ToMaskedJson()</code> — для логов. Маскировка описана декларативно в YAML,
-          а не размазана по коду логирования.
-          <span class="muted">Подходит: финтех, HR, медицина, любые персональные данные.</span></p></div>
-        <div class="card" style="border-left-color:#3fb950"><h4>3. Граница сервиса / gateway / BFF</h4>
-          <p>JSON Schema проверяет сырое тело до десериализации: лишние поля
-          (<code>additionalProperties: false</code>), <code>uniqueItems</code>,
-          точный путь ошибки. Один файл — для .NET, Node, Go и тестов.
-          <span class="muted">Подходит: публичные API, партнёрские интеграции.</span></p></div>
+        <div class="card"><h4>Подходит</h4>
+          <ul>
+            <li>Контракт-первый API: спецификация согласуется до кода.</li>
+            <li>Граница сервиса: схема проверяет сырое тело до десериализации.</li>
+            <li>Контрактные тесты: <code>valid_*.json</code> / <code>invalid_*.json</code> — фикстуры, которые не требуют C#.</li>
+          </ul></div>
       </div>
       <div>
-        <div class="card" style="border-left-color:#3fb950"><h4>4. Тестовые данные и моки</h4>
-          <p>Схема — источник валидных/невалидных фикстур. В проекте это уже работает:
-          <code>valid_*.json</code> / <code>invalid_*.json</code> гоняются через
-          <code>JsonSchema.Net</code>. Тот же набор — для контрактных тестов потребителей.</p></div>
-        <div class="card"><h4>5. Контрактные тесты в CI</h4>
-          <p><code>generate</code> идемпотентен, код выхода говорит о типе ошибки.
-          Добавили <code>invalid_*.json</code> — получили регрессионный тест на схему
-          без единой строки C#-кода.</p></div>
-        <div class="card" style="border-left-color:#f0883e"><h4>6. Миграция legacy</h4>
-          <p>Есть только <code>swagger.yaml</code> от старой системы — генерируем DTO и валидаторы,
-          получаем типизированный контракт и одинаковые сообщения об ошибках.</p></div>
-        <div class="note small"><b>Когда не подходит:</b> нужен полный клиент API (Kiota/NSwag),
-          OpenAPI 3.1 с <code>type: [..]</code> массивами, code-first без спеки,
-          или требуется DI-регистрация валидаторов «из коробки» — этого здесь нет.</div>
+        <div class="card" style="border-left-color:#f85149"><h4>Пока не подходит</h4>
+          <ul>
+            <li>Маскировка PII: не работает.</li>
+            <li>Валидаторы с <code>Guid</code>/<code>DateTime</code>/enum и внешними файлами: не собираются или неточны.</li>
+            <li>Полный клиент API: инструмент его не генерирует (для этого Kiota или NSwag).</li>
+            <li>OpenAPI 3.1 с массивами в <code>type</code>.</li>
+          </ul></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═════════════════════════════════════════════════════════════ 33 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Расширение</div><h2>5 типовых задач и точка входа для каждой</h2><div class="num"></div></div>
-  <div class="s-body">
-    <table>
-      <tr><th style="width:290px">Задача</th><th style="width:330px">Файл</th><th>Что сделать</th></tr>
-      <tr><td>Поддержать новое ключевое слово в валидаторах</td>
-        <td><code>Generators/Validators/RuleMapper.cs</code></td>
-        <td>Добавить поле в <code>ValidationRules</code>, извлечь в
-          <code>IRBuilder.ExtractValidationRules</code>, вернуть строку правила из
-          <code>AppendStringRules/Numeric/Array</code></td></tr>
-      <tr><td>Поддержать новый <code>format</code> в типах C#</td>
-        <td><code>Generators/Dto/TypeMapper.cs</code></td>
-        <td>Ветка в <code>MapString/MapInteger/MapNumber</code>; правило — в <code>RuleMapper</code></td></tr>
-      <tr><td>Загружать спецификации по HTTP</td>
-        <td><code>Core/Resolving/IDocumentLoader.cs</code></td>
-        <td>Реализовать <code>RemoteHttpLoader</code>, передать в <code>RefResolver</code> и
-          <code>JsonSchemaGenerator</code> (уже принимают через конструктор)</td></tr>
-      <tr><td>Новая стратегия маскировки</td>
-        <td><code>Generators/Masking/MaskingGenerator.cs</code> + <code>MaskStrategy</code></td>
-        <td>Добавить член enum, ветку в <code>MaskingStrategyExecutor.Apply</code>,
-          разбор в <code>MaskingConfigLoader</code> (там <code>Enum.TryParse</code> — новый
-          член подхватится автоматически)</td></tr>
-      <tr><td>Новый артефакт (например, TS-типы)</td>
-        <td>новый класс в <code>Generators/</code></td>
-        <td>Принимать <code>Dictionary&lt;string, SchemaNode&gt;</code>, возвращать
-          <code>List&lt;GeneratedFile&gt;</code>, вызвать из
-          <code>GenerateCommandExecutor</code> + флаг в <code>GenerateOptions</code></td></tr>
-    </table>
-    <div class="cols c2" style="margin-top:14px">
-      <div class="note blue small"><b>Правило, которое держит архитектуру:</b> генератор ничего не
-        знает про файловую систему. Пока он возвращает <code>GeneratedFile</code>, его можно
-        тестировать строками и добавлять без изменения CLI.</div>
-      <div class="note green small"><b>Тесты рядом:</b> <code>Core.Tests</code> для парсинга,
-        <code>Generators.Tests</code> на строки, <code>Cli.Tests</code> на диск,
-        <code>Integration.Tests</code> на сквозной сценарий. Новая фича — минимум один тест
-        в каждом затронутом слое.</div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 34 -->
-<section class="slide" data-accent="core">
-  <div class="s-head"><div class="kicker">Шпаргалка</div><h2>Вопросы, которые задают чаще всего</h2><div class="num"></div></div>
-  <div class="s-body">
-    <div class="cols c2">
-      <div>
-        <div class="card plain"><h4>«Почему не NSwag / Kiota?»</h4>
-          <p>Они генерят клиентов и модели, но не дают JSON Schema тела запроса и маскировку PII,
-            а валидаторы получаются «в стиле» конкретного инструмента. Здесь — узкая задача
-            с полным контролем над выводом.</p></div>
-        <div class="card plain"><h4>«Что будет, если в YAML опечатка?»</h4>
-          <p><code>FormatException</code> → код 3, сообщение без стека (стек — с <code>-v</code>).
-            Неизвестный ключ (<code>x-foo</code>, <code>foo</code>) не ломает парсинг:
-            дерево универсальное.</p></div>
-        <div class="card plain"><h4>«Как понять, почему поле стало <code>object</code>?»</h4>
-          <p>Смотреть <code>BuildSchemaNodeFromInlineAsync</code>: он не рекурсирует в
-            <code>properties</code>/<code>items</code>. Проверить можно, распечатав IR в
-            <code>--verbose</code> или в тесте на <code>IRBuilder</code>.</p></div>
-        <div class="card plain"><h4>«Генерация детерминирована?»</h4>
-          <p>Да для JSON Schema (<code>SortedDictionary</code> для <code>$defs</code>,
-            фиксированный порядок свойств из словаря). DTO/валидаторы идут в порядке
-            <code>components/schemas</code>.</p></div>
-      </div>
-      <div>
-        <div class="card plain"><h4>«Где валидируется то, чего нет в схеме?»</h4>
-          <p>Нигде — и это осознанно. Бизнес-правила (контрольные суммы ИНН, возраст) в OpenAPI
-            не выразить: для этого есть ручные валидаторы поверх сгенерированных.</p></div>
-        <div class="card plain"><h4>«Можно ли использовать только JSON Schema?»</h4>
-          <p>Да: <code>--json-schema-only</code>. Это самый зрелый путь — 52 интеграционных
-            теста, включая реальную валидацию тел запросов.</p></div>
-        <div class="card plain"><h4>«Почему <code>ToMaskedJson</code>, а не настройка логгера?»</h4>
-          <p>Правила живут рядом с данными, а не в конфиге логгера, и переживают рефакторинг:
-            переименовали поле — правило в YAML обновили один раз, атрибут перегенерировался.</p></div>
-        <div class="card plain"><h4>«Сколько стоит добавить новый проект в решение?»</h4>
-          <p>Core — единственная зависимость от YamlDotNet. Всё остальное — BCL.
-            Рантайм-зависимостей у сгенерированного кода нет, кроме FluentValidation.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ═════════════════════════════════════════════════════════════ 35 -->
-<section class="slide title" data-accent="core">
+<!-- 27 -->
+<section class="slide title active" data-accent="core">
   <div class="t-kicker">Итог</div>
-  <h1 style="font-size:52px">YAML → <span>код, правила и схема</span></h1>
-  <p class="t-sub" style="margin-bottom:26px">Спецификация описывает контракт один раз —
-    остальное генерируется и проверяется тестами.</p>
+  <h1 style="font-size:52px">YAML → <span>схемы, DTO и правила</span></h1>
+  <p class="t-sub" style="margin-bottom:26px">JSON Schema — самая зрелая часть. DTO и валидаторы работают частично,
+    маскировка — нет. Список того, что сломано, и порядок исправления — на слайдах 15, 24, 25.</p>
   <div class="cols c3" style="gap:18px;margin-bottom:26px">
     <div class="card plain"><h4>Запустить</h4>
-      <p><code>dotnet run --project src/OpenApiDtoGenerator.Cli -- generate -i … -n …</code></p></div>
-    <div class="card plain"><h4>Посмотреть примеры</h4>
-      <p><code>samples/openapi_example.yaml</code> — база;
-        <code>samples/complex/</code> — внешние <code>$ref</code>, <code>oneOf</code>, циклы</p></div>
+      <p><code>dotnet run --project src/OpenApiDtoGenerator.Cli -- generate -i samples/open_api_example_simple.yaml -o Generated -n Simple.Dto --json-schema --json-schema-responses</code></p></div>
+    <div class="card plain"><h4>Посмотреть</h4>
+      <p><code>samples/open_api_example_simple.yaml</code> — минимальный пример; <code>samples/complex/</code> — внешние <code>$ref</code>, <code>oneOf</code>, циклы.</p></div>
     <div class="card plain"><h4>Проверить</h4>
-      <p><code>dotnet test</code> — 383 теста, ~5 секунд</p></div>
+      <p><code>dotnet test</code> — 386 тестов. Они не проверяют сборку и маскировку.</p></div>
   </div>
-  <div class="t-hint">Дальше: <code>README.md</code> · <code>presentation/speaker-notes.md</code> — заметки и ответы на вопросы</div>
+  <div class="t-hint">Заметки и ответы на вопросы — <code>presentation/speaker-notes.md</code></div>
 </section>
 
 </div><!-- /stage -->

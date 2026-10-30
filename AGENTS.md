@@ -5,7 +5,7 @@ C# (.NET 8 target, net8.0) tool that turns OpenAPI 3.x YAML/JSON into DTOs, Flue
 ## Commands
 
 - Build: `dotnet build OpenApiDtoGenerator.sln`
-- All tests: `dotnet test OpenApiDtoGenerator.sln` (383 tests, ~10s, all passing)
+- All tests: `dotnet test OpenApiDtoGenerator.sln` (386 tests, ~10s, all passing)
 - One project: `dotnet test tests/Core.Tests` (also `Generators.Tests`, `Cli.Tests`, `Integration.Tests`)
 - Run the CLI from source (single line, works in cmd): `dotnet run --project src/OpenApiDtoGenerator.Cli -- generate --input samples/openapi_example.yaml --output Generated --namespace MyApp.Dto`. Do not split it with `\` (breaks in cmd and PowerShell).
 - No lint, formatter, typecheck, codegen, CI workflows, `global.json`, or `Directory.Build.props`. Build and test are the only verification steps.
@@ -29,6 +29,7 @@ C# (.NET 8 target, net8.0) tool that turns OpenAPI 3.x YAML/JSON into DTOs, Flue
 
 - Exit codes: 0 success, 1 unexpected error, 2 input file not found, 3 format error (YAML/JSON or masking config), 4 conflicting flags (`--*-only` combined, or `--masking-only` without `--masking-config`).
 - Mutually exclusive: `--dto-only`, `--validators-only`, `--masking-only`, `--json-schema-only`.
+- JSON Schema file names carry the direction: `<operationId>.Rq.schema.json` for request bodies, `<operationId>.Rs.<code>.schema.json` for responses. Response schemas are generated only with `--json-schema-responses` (together with `--json-schema` or `--json-schema-only`). `index.json` has `kind` (`Rq`/`Rs`) and `statusCode`.
 - JSON Schema is draft 2020-12. `format` is annotation-only unless the validator sets `RequireFormatValidation = true` (JsonSchema.Net), which the tests need in order to reject bad formats.
 - `discriminator` is not carried into JSON Schema. Discriminated `oneOf` variants must each have an `enum: [VALUE]` discriminator field so they are mutually exclusive.
 - Generated output (`Generated/`, `bin/`, `obj/`) is not committed.
